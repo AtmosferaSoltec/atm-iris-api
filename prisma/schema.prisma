@@ -1,0 +1,154 @@
+// Iris · cuentas, iglesias y contenido.
+//
+// El dominio y sus reglas estan en docs/BACKEND_SPEC.md; las decisiones de
+// autenticacion, en docs/plans/01-auth.md.
+//
+// Convenciones: tablas en snake_case plural y columnas en snake_case via @map;
+// en TypeScript quedan en camelCase. Fechas en Timestamptz(3), siempre UTC.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+// Desde Prisma 7 las URLs de conexion viven en prisma.config.ts.
+datasource db {
+  provider = "postgresql"
+}
+
+// ===========================================================================
+// Enums
+// ===========================================================================
+
+enum MemberRole {
+  OWNER
+  MEMBER
+
+  @@map("member_role")
+}
+
+/// Desde donde se abrio la sesion. Sirve para nombrar el dispositivo en la
+/// lista de sesiones y para no confundir una consola con el navegador.
+enum ClientPlatform {
+  WEB
+  IOS
+  WINDOWS
+
+  @@map("client_platform")
+}
+
+enum SessionRevokedReason {
+  SIGN_OUT
+  SIGN_OUT_ALL
+  PASSWORD_RESET
+  /// Llego un refresh token ya rotado: alguien mas tiene una copia.
+  TOKEN_REUSE
+
+  @@map("session_revoked_reason")
+}
+
+// ===========================================================================
+// Cuentas
+// ===========================================================================
+
+/// El espacio de datos (tenant). Todo el contenido cuelga de una iglesia.
+model Church {
+  id        String   @id @default(uuid(7))
+  name      String   @db.VarChar(120)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  members  ChurchMember[]
+  sessions Session[]
+
+  @@map("churches")
+}
+
+/// Usuario global: entra a cada iglesia por su membresia.
+model User {
+  id                String    @id @default(uuid(7))
+  /// Siempre en minusculas y sin espacios: el unico sirve como identidad.
+  email             String    @unique @db.VarChar(254)
+  passwordHash      String    @map("password_hash") @db.VarChar(255)
+  fullName          String    @map("full_name") @db.VarChar(120)
+  isActive          Boolean   @default(true) @map("is_active")
+  lastLoginAt       DateTime? @map("last_login_at") @db.Timestamptz(3)
+  passwordChangedAt DateTime? @map("password_changed_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  memberships        ChurchMember[]
+  sessions           Session[]
+  passwordResetCodes PasswordResetCode[]
+
+  @@map("users")
+}
+
+model ChurchMember {
+  id        String     @id @default(uuid(7))
+  churchId  String     @map("church_id")
+  userId    String     @map("user_id")
+  role      MemberRole @default(MEMBER)
+  isActive  Boolean    @default(true) @map("is_active")
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  church Church @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([churchId, userId])
+  @@index([userId])
+  @@map("church_members")
+}
+
+/// Una sesion por dispositivo. El refresh token no se guarda: se firma con
+/// HMAC sobre (id, refreshGeneration), asi una fuga de esta tabla no entrega
+/// ningun token valido. Ver docs/plans/01-auth.md.
+model Session {
+  id                String                @id @default(uuid(7))
+  userId            String                @map("user_id")
+  churchId          String                @map("church_id")
+  platform          ClientPlatform
+  /// "iPad de la sala principal". Lo manda el cliente; opcional.
+  deviceName        String?               @map("device_name") @db.VarChar(80)
+  /// Sube en cada refresh. Solo el token de la generacion vigente es valido
+  /// (mas el anterior durante la gracia de 30 s).
+  refreshGeneration Int                   @default(0) @map("refresh_generation")
+  /// Cuando se emitio la generacion vigente; mide la ventana de gracia.
+  rotatedAt         DateTime              @default(now()) @map("rotated_at") @db.Timestamptz(3)
+  lastUsedAt        DateTime              @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  /// Caducidad por inactividad: se corre 60 dias en cada refresh.
+  expiresAt         DateTime              @map("expires_at") @db.Timestamptz(3)
+  revokedAt         DateTime?             @map("revoked_at") @db.Timestamptz(3)
+  revokedReason     SessionRevokedReason? @map("revoked_reason")
+  ipAddress         String?               @map("ip_address") @db.VarChar(45)
+  userAgent         String?               @map("user_agent") @db.VarChar(255)
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  church Church @relation(fields: [churchId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model PasswordResetCode {
+  id                   String    @id @default(uuid(7))
+  userId               String    @map("user_id")
+  /// El codigo se guarda hasheado, igual que la contrasena.
+  codeHash             String    @map("code_hash") @db.VarChar(255)
+  expiresAt            DateTime  @map("expires_at") @db.Timestamptz(3)
+  /// Maximo 5. Seis digitos son un millon de combinaciones: sin este tope, un
+  /// script las prueba todas en minutos.
+  verificationAttempts Int       @default(0) @map("verification_attempts")
+  /// Un codigo usado no vuelve a servir.
+  usedAt               DateTime? @map("used_at") @db.Timestamptz(3)
+  /// Los envios por dia se cuentan sobre esta fecha.
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("password_reset_codes")
+}

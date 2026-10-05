@@ -54,3 +54,12 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# La plantilla si se versiona.
+!.env.example
+
+# Cliente generado por Prisma
+/src/generated
+
+# Info incremental de TypeScript
+*.tsbuildinfo

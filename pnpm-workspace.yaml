@@ -1,0 +1,17 @@
+# Politica de scripts de instalacion, declarada entera y a proposito.
+#
+# pnpm 11 se niega a ignorar en silencio el postinstall de un paquete: o se
+# aprueba o se rechaza. Sin esta lista, `pnpm install` falla dentro de Docker
+# con ERR_PNPM_IGNORED_BUILDS aunque en local parezca que todo va bien.
+allowBuilds:
+  # Prisma compila/descarga lo suyo en el postinstall. `prisma generate` del
+  # build lo necesita.
+  '@prisma/engines': true
+  prisma: true
+  # argon2 nativo: sin su build no hay hash de contrasenas.
+  '@node-rs/argon2': true
+  # Lo arrastra vitest. Solo se instala en la etapa de build, no en la final.
+  esbuild: true
+  # Telemetria de instalacion. Saltarse su postinstall no rompe nada.
+  '@scarf/scarf': false
+  workerd: set this to true or false

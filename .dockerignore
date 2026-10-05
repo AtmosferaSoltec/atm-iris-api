@@ -1,0 +1,20 @@
+# Lo que no debe entrar en la imagen ni invalidar su cache.
+node_modules
+dist
+.git
+.github
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+coverage
+docs
+test
+*.log
+.DS_Store
+.vscode
+.idea
+docker-compose*.yml
+Dockerfile
+.dockerignore
+README.md
