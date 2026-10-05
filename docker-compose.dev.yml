@@ -1,0 +1,61 @@
+# Almacenamiento S3 compatible para desarrollo (MinIO). En produccion es
+# Cloudflare R2 y este archivo no se usa.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# API S3 en :9000 (lo que usa el API de Iris) y consola web en :9001.
+# Las credenciales son de desarrollo; las mismas van en .env como
+# STORAGE_ACCESS_KEY_ID / STORAGE_SECRET_ACCESS_KEY.
+#
+# Imagen de Bitnami "legacy" y no la oficial: desde 2025 MinIO dejo de publicar
+# imagenes gratuitas (minio/minio y minio/mc ya no se pueden descargar). Esta es
+# MinIO congelada en una version fija; para desarrollo alcanza. Trae `mc`.
+name: atm-iris-dev
+
+x-minio-credentials: &minio-credentials
+  MINIO_ROOT_USER: ${MINIO_ROOT_USER:-iris-dev}
+  MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-iris-dev-secret}
+
+services:
+  minio:
+    image: bitnamilegacy/minio:2025.5.24
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    environment:
+      <<: *minio-credentials
+      MINIO_CONSOLE_PORT_NUMBER: '9001'
+      # El navegador sube directo con la URL firmada: sin esto, el preflight
+      # CORS desde la web (localhost:3000) falla.
+      MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_API_CORS_ALLOW_ORIGIN:-http://localhost:3000}
+    volumes:
+      - iris_minio_data:/bitnami/minio/data
+    healthcheck:
+      test: ['CMD', 'curl', '-fs', 'http://localhost:9000/minio/health/live']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # Un solo uso: crea el bucket, lo deja privado y termina. Idempotente.
+  # Reintenta el alias porque la imagen de Bitnami arranca MinIO una vez para
+  # inicializarse y lo reinicia: el health check puede pasar en ese primer
+  # arranque y la conexion caer justo despues.
+  minio-setup:
+    image: bitnamilegacy/minio:2025.5.24
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      <<: *minio-credentials
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-iris-media}
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - >
+        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do sleep 1; done &&
+        mc mb --ignore-existing "local/$$STORAGE_BUCKET" &&
+        mc anonymous set none "local/$$STORAGE_BUCKET"
+    restart: 'no'
+
+volumes:
+  iris_minio_data:

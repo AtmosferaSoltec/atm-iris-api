@@ -21,6 +21,28 @@ export const API_ERROR_CODES = {
   NO_CHURCH_ACCESS: 'NO_CHURCH_ACCESS',
   RESET_CODE_INVALID: 'RESET_CODE_INVALID',
   RESET_LIMIT_REACHED: 'RESET_LIMIT_REACHED',
+  INVALID_CURRENT_PASSWORD: 'INVALID_CURRENT_PASSWORD',
+
+  // Equipo
+  /** Quitar o degradar al unico dueno de la iglesia. */
+  LAST_OWNER: 'LAST_OWNER',
+  ALREADY_MEMBER: 'ALREADY_MEMBER',
+  /** Invitacion inexistente, vencida, revocada o ya usada. */
+  INVITATION_INVALID: 'INVITATION_INVALID',
+
+  // Contenido de la iglesia
+  PERSON_NAME_TAKEN: 'PERSON_NAME_TAKEN',
+  SERVICE_TYPE_NAME_TAKEN: 'SERVICE_TYPE_NAME_TAKEN',
+  /** Un id generado por el cliente ya pertenece a un recurso de otra iglesia. */
+  ID_CONFLICT: 'ID_CONFLICT',
+
+  // Multimedia
+  UNSUPPORTED_MEDIA_TYPE: 'UNSUPPORTED_MEDIA_TYPE',
+  FILE_TOO_LARGE: 'FILE_TOO_LARGE',
+  STORAGE_QUOTA_EXCEEDED: 'STORAGE_QUOTA_EXCEEDED',
+  UPLOAD_NOT_FOUND: 'UPLOAD_NOT_FOUND',
+  /** 503: el servidor arranco sin almacenamiento (solo en desarrollo). */
+  STORAGE_UNAVAILABLE: 'STORAGE_UNAVAILABLE',
 } as const;
 
 export type ApiErrorCode =

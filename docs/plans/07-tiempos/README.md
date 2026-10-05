@@ -48,4 +48,13 @@ Trigger de `sync_version` en `service_records`. Actualiza `docs/database/schema.
 
 ## Desviaciones
 
-_(Completar al cerrar la fase.)_
+| Qué | Motivo |
+|---|---|
+| FK de `service_records.service_type_id` con `ON DELETE NO ACTION` (migración aparte `service_records_type_fk_no_action`) | Con `RESTRICT`, borrar una iglesia (cascada sobre tipos y registros) fallaría según el orden; `NO ACTION` se comprueba al final de la sentencia. Los tipos nunca se borran de verdad |
+| `created_by_session_id` es FK a `sessions` con `ON DELETE SET NULL` | El plan no fija la FK; así no queda un id colgando si se borra el usuario |
+| `PUT` sobre un registro **borrado** de la iglesia → 404 | Contrato §1.2. La consola puede descartar ese envío de su cola |
+| "Contenido igual" compara fecha, tipo, nombre del tipo y todos los campos de cada bloque en orden. Un bloque ya `adjusted` no es igual al `completed` que reenvía la consola: reemplazarlo pide `records.manage` | Un reintento no debe deshacer un ajuste hecho desde la web |
+| Ids de bloque que ya pertenecen a otro registro → `409 ID_CONFLICT` con `errors["blocks.N.id"]`; ids repetidos en el cuerpo → 400; el `:id` del `PUT` debe ser UUID | Mismas reglas que los bloques de plantilla |
+| `PATCH …/blocks/:blockId { personId }` con una persona inexistente o borrada → 400 `errors.personId` | "Nombre actual" solo existe para una persona viva |
+| `serviceTypeId` de otra iglesia → 400 `errors.serviceTypeId` (los borrados de la propia iglesia se aceptan) | Lo pide el plan |
+| Verificado (19 comprobaciones): operator crea (201) y reintenta (200, un solo registro); operator no reemplaza distinto, no ajusta ni borra (403); ajuste → `adjusted`; cambio y borrado de responsable; `ID_CONFLICT`; tipo borrado aceptado; `from`/`to`; `limit` 500; `blockCount` sin omitidos ni borrados | — |

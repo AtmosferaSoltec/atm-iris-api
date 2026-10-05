@@ -20,7 +20,8 @@ import { TokenService } from './services/token.service.js';
     RefreshTokenService,
     ResetCodeService,
   ],
-  // El guard global los necesita para validar cada peticion.
-  exports: [TokenService, AuthRepository],
+  // El guard global necesita los dos primeros; `AuthService` lo usa la
+  // aceptacion de invitaciones para abrir sesion.
+  exports: [TokenService, AuthRepository, AuthService],
 })
 export class AuthModule {}

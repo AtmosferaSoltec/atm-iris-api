@@ -103,4 +103,10 @@ La base de `/sync/changes` (fase 08). Se monta ahora para que cada tabla nueva n
 
 ## Desviaciones
 
-_(Completar al cerrar la fase.)_
+| Qué | Motivo |
+|---|---|
+| Los únicos parciales por *nameKey* se declaran en `schema.prisma` con la preview `partialIndexes` (`@@unique([...], where: raw("deleted_at IS NULL"))`) en lugar de SQL a mano | Prisma 7.10 los soporta; escritos solo en SQL, `migrate dev` los ve como deriva y genera un `DROP INDEX` en la migración siguiente |
+| `ChurchWriteLock` es un proveedor de `DatabaseModule` (`lock.run(churchId, tx => …)`), además de la función `withChurchLock(prisma, churchId, …)` y `lockChurch(tx, churchId)` | Los repositorios lo inyectan como cualquier dependencia y se puede doblar en pruebas |
+| `resolveRequestId` lo usan el middleware y `genReqId` de pino, y el CORS expone `X-Request-Id` | Garantiza el mismo id en el header y en el log sin depender del orden de los middlewares; la web puede leer el header |
+| `ChurchRole` ya es `owner \| admin \| operator`; hasta la migración de la fase 02 el `MEMBER` de la base se lee como `operator` | Así compila y el guard de permisos se pudo probar con un rol sin `members.manage` |
+| Verificación del 403: endpoint temporal con `@RequirePermissions('members.manage')`, cuenta con rol rebajado por SQL → 403 `FORBIDDEN`; con `owner` → 200. Endpoint borrado | — |

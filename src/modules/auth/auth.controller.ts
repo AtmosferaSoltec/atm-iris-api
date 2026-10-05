@@ -1,9 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
   Post,
   Req,
 } from '@nestjs/common';
@@ -13,6 +16,7 @@ import type { Request } from 'express';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Public } from '../../common/decorators/public.decorator.js';
+import { ApiData } from '../../common/swagger/api-schemas.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import {
   FORGOT_PASSWORD_THROTTLE,
@@ -24,10 +28,17 @@ import { AuthService } from './auth.service.js';
 import type {
   AuthenticatedUser,
   AuthResult,
+  DeviceSession,
   RequestOrigin,
   SessionView,
 } from './auth.types.js';
 import {
+  changePasswordSchema,
+  switchChurchSchema,
+  updateProfileSchema,
+  type ChangePasswordInput,
+  type SwitchChurchInput,
+  type UpdateProfileInput,
   forgotPasswordSchema,
   refreshSchema,
   resetPasswordSchema,
@@ -49,7 +60,7 @@ const RESET_REQUESTED = {
 };
 
 /** IP real (detras del proxy de confianza) y navegador o app, para la sesion. */
-function originOf(request: Request): RequestOrigin {
+export function originOf(request: Request): RequestOrigin {
   return {
     ipAddress: request.ip,
     userAgent: request.headers['user-agent']?.slice(0, 255),
@@ -67,6 +78,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Crear la cuenta de una iglesia y abrir la primera sesión',
   })
+  @ApiData('AuthResult', { status: 201 })
   signUp(
     @Body(new ZodValidationPipe(signUpSchema)) dto: SignUpInput,
     @Req() request: Request,
@@ -81,6 +93,7 @@ export class AuthController {
   // prueba contrasenas.
   @Throttle({ default: LOGIN_THROTTLE })
   @ApiOperation({ summary: 'Iniciar sesión con correo y contraseña' })
+  @ApiData('AuthResult')
   signIn(
     @Body(new ZodValidationPipe(signInSchema)) dto: SignInInput,
     @Req() request: Request,
@@ -92,6 +105,7 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Cambiar el refresh token por un par nuevo' })
+  @ApiData('AuthResult')
   refresh(
     @Body(new ZodValidationPipe(refreshSchema)) dto: RefreshInput,
     @Req() request: Request,
@@ -118,8 +132,66 @@ export class AuthController {
   @Get('me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Usuario, iglesia y sesión actuales' })
+  @ApiData('SessionView')
   me(@CurrentUser() user: AuthenticatedUser): Promise<SessionView> {
     return this.auth.getSession(user);
+  }
+
+  @Patch('me')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cambiar el nombre del usuario' })
+  @ApiData('SessionView')
+  updateMe(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(updateProfileSchema)) dto: UpdateProfileInput,
+  ): Promise<SessionView> {
+    return this.auth.updateProfile(user, dto.fullName);
+  }
+
+  @Post('change-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Cambiar la contraseña y cerrar las demás sesiones',
+  })
+  changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(changePasswordSchema)) dto: ChangePasswordInput,
+  ): Promise<void> {
+    return this.auth.changePassword(user, dto);
+  }
+
+  @Post('switch-church')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Pasar esta sesión a otra iglesia del usuario (tokens nuevos)',
+  })
+  @ApiData('AuthResult')
+  switchChurch(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(switchChurchSchema)) dto: SwitchChurchInput,
+  ): Promise<AuthResult> {
+    return this.auth.switchChurch(user, dto.churchId);
+  }
+
+  @Get('sessions')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Dispositivos con sesión abierta' })
+  @ApiData('DeviceSession', { isArray: true })
+  sessions(@CurrentUser() user: AuthenticatedUser): Promise<DeviceSession[]> {
+    return this.auth.listSessions(user);
+  }
+
+  @Delete('sessions/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cerrar la sesión de un dispositivo propio' })
+  revokeSession(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<void> {
+    return this.auth.revokeSession(user, id);
   }
 
   @Public()
@@ -127,6 +199,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: FORGOT_PASSWORD_THROTTLE })
   @ApiOperation({ summary: 'Paso 1: enviar un código de 6 dígitos al correo' })
+  @ApiData('Message')
   async forgotPassword(
     @Body(new ZodValidationPipe(forgotPasswordSchema)) dto: ForgotPasswordInput,
   ) {
@@ -141,6 +214,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Paso 2: comprobar el código antes de pedir la contraseña nueva',
   })
+  @ApiData('ResetCodeValid')
   async verifyResetCode(
     @Body(new ZodValidationPipe(verifyResetCodeSchema))
     dto: VerifyResetCodeInput,
@@ -156,6 +230,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Paso 3: crear la contraseña nueva y cerrar todas las sesiones',
   })
+  @ApiData('Message')
   async resetPassword(
     @Body(new ZodValidationPipe(resetPasswordSchema)) dto: ResetPasswordInput,
   ) {

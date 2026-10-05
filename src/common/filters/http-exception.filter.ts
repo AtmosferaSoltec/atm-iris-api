@@ -73,7 +73,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         payload.code ??
         CODE_BY_STATUS[status] ??
         API_ERROR_CODES.INTERNAL_ERROR,
-      message: normalizeMessage(payload.message, status),
+      message: normalizeMessage(payload.message, status, isHttp),
       ...(payload.errors ? { errors: payload.errors } : {}),
       timestamp: new Date().toISOString(),
       path,
@@ -93,8 +93,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
 function normalizeMessage(
   message: string | string[] | undefined,
   status: number,
+  isHttp: boolean,
 ): string {
-  if (status >= HttpStatus.INTERNAL_SERVER_ERROR) return FALLBACK_MESSAGE;
+  // Un 500 nunca muestra su mensaje: puede traer detalles internos. Un 503 que
+  // el propio codigo lanza a proposito (almacenamiento sin configurar) si.
+  if (status === HttpStatus.INTERNAL_SERVER_ERROR || (!isHttp && status > 500)) {
+    return FALLBACK_MESSAGE;
+  }
   if (Array.isArray(message)) return message[0] ?? FALLBACK_MESSAGE;
   return message ?? FALLBACK_MESSAGE;
 }

@@ -50,4 +50,11 @@ canciones, medios, registros y la propia iglesia.
 
 ## Desviaciones
 
-_(Completar al cerrar la fase.)_
+| Qué | Motivo |
+|---|---|
+| Cada rama del `UNION ALL` ordena y corta por su lado (`ORDER BY sync_version LIMIT n+1`) antes del orden y corte final | Así cada rama usa su índice `(church_id, sync_version)` en lugar de leer la tabla entera de la iglesia (verificado con `EXPLAIN`) |
+| `cursor`: con `hasMore`, la versión del último candidato entregado; sin `hasMore`, el máximo entre esa versión y la de la iglesia | Lo que pide el plan, sin volver a mandar `church` en la página siguiente |
+| `/sync/changes` lleva `@SkipThrottle()` | La primera copia de una iglesia grande son muchas páginas seguidas; el límite general por IP la cortaría a la mitad |
+| `church.storage.usedBytes` refleja el uso al momento de entregar `church`, pero subir o borrar un medio no sube la versión de la iglesia | `usedBytes` no es una columna de `churches`; las consolas no lo necesitan para proyectar |
+| Revisión del "horizonte seguro": todas las escrituras en `people`, `service_types`, `songs`, `media_assets`, `service_records` y `churches` (y sus hijos) corren con `tx` dentro de `ChurchWriteLock`; en `PeopleRepository` el `tx` de las escrituras pasó a ser obligatorio para que el compilador lo garantice. La única excepción es el `INSERT` de la iglesia en `sign-up`, que crea una iglesia nueva sin escrituras concurrentes posibles | Lo pide el plan |
+| Verificado: copia completa desde `0` en 3 páginas de `limit=3` con el último `hasMore: false`; nada nuevo → mismo cursor; crear y borrar → solo en `deleted.people`; renombrar → en `changes` con cursor nuevo; cambiar módulos → viene `church` (y no se repite); un registro de tiempos aparece; `since` inválido o ausente → 400 | — |

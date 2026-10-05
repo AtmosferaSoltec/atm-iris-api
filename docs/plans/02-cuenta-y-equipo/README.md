@@ -87,4 +87,13 @@ contrato §7.
 
 ## Desviaciones
 
-_(Completar al cerrar la fase.)_
+| Qué | Motivo |
+|---|---|
+| `JwtAuthGuard` toma el **rol de la base** (una consulta que une sesión, usuario y membresía) en lugar del rol del token, y exige que `sessions.church_id` coincida con el `churchId` del token | Un cambio de rol o una baja se aplican en el acto, no a los 15 min. Tras `switch-church`, el access token anterior responde 401 y el cliente refresca (ciclo normal del contrato §4.1) |
+| Valor nuevo `MEMBER_REMOVED` en `session_revoked_reason` | Distinguir en la tabla las sesiones cerradas por quitar a alguien del equipo |
+| `GET /invitations` devuelve las no aceptadas ni revocadas **aunque estén vencidas** (`expiresAt` en la respuesta), las más nuevas primero | Si se ocultaran las vencidas no habría forma de reenviarlas desde la web; el cliente puede marcarlas como vencidas |
+| Un `admin` recibe 403 al reenviar o revocar una invitación con rol `owner` | Misma regla que asignar `owner` (contrato §3) |
+| `POST /invitations/accept`: con cuenta existente que ya es miembro activo → `409 ALREADY_MEMBER`; con cuenta nueva sin `fullName` o con contraseña < 8 → `400 VALIDATION_FAILED` con `errors.fullName` / `errors.password` | Interpretación conservadora; el contrato no lo detalla |
+| `change-password` también invalida los códigos de recuperación pendientes | Igual que `reset-password`: un código pedido antes del cambio no debe seguir sirviendo |
+| `InvitationsService` usa `AuthService.openSession` (exportado por `AuthModule`) | Aceptar termina igual que un login; una sola forma de abrir sesión |
+| Verificado con `curl` (script de 37 comprobaciones): permisos y `churches` en `sign-up`, operator → 403 en `POST /invitations`, aceptar con cuenta nueva y existente, `switch-church` ida y vuelta, `sign-in` a la última iglesia, `LAST_OWNER`, admin vs owner, quitar a un miembro corta su acceso con 401, perfil, contraseña, dispositivos | — |

@@ -48,12 +48,19 @@ function sessionRow(
       isActive: true,
       lastLoginAt: null,
       passwordChangedAt: null,
+      lastChurchId: 'church-1',
       createdAt: now,
       updatedAt: now,
     },
     church: {
       id: 'church-1',
       name: 'Iglesia Vida Nueva',
+      timezone: 'America/Lima',
+      bibleEnabled: true,
+      multimediaEnabled: true,
+      timeControlEnabled: true,
+      storageQuotaBytes: 5368709120n,
+      syncVersion: 1n,
       createdAt: now,
       updatedAt: now,
     },
@@ -67,6 +74,9 @@ function setup() {
     emailExists: vi.fn(),
     createAccount: vi.fn(),
     findPrimaryMembership: vi.fn(),
+    findActiveMemberships: vi.fn().mockResolvedValue([
+      { role: 'OWNER', church: { id: 'church-1', name: 'Iglesia Vida Nueva' } },
+    ]),
     findMembership: vi
       .fn()
       .mockResolvedValue({ role: 'OWNER', isActive: true }),

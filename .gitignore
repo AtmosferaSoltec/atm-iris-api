@@ -63,3 +63,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Info incremental de TypeScript
 *.tsbuildinfo
+
+# Texto de la Biblia descargado de eBible.org (docs/bible-source.md): no se versiona.
+/data/bible

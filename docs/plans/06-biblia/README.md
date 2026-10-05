@@ -59,4 +59,12 @@ Sin `church_id`: es contenido global. Actualiza `docs/database/schema.md`.
 
 ## Desviaciones
 
-_(Completar al cerrar la fase.)_
+| Qué | Motivo |
+|---|---|
+| Fuente: `spaRV1909_vpl.zip` de eBible.org, verificada como dominio público el 2026-10-05 (`docs/bible-source.md`). El archivo queda en `data/bible/` (ignorado por git) | Lo pide el plan |
+| El VPL usa códigos propios (`JOH`, `SOL`, `EZE`, `JOE`, `NAH`, `MAR`, `PHI`, `JAM`, `1JO`, `2JO`, `3JO`); el script los traduce a USFM | El contrato exige ids USFM (`JHN`) |
+| 18 versículos vienen vacíos (unidos al anterior en esta versificación); se guardan con texto `""` y en la descarga son `""` | `chapters[c][v]` necesita una posición por versículo y el contrato no admite `null` ahí |
+| `size_bytes` es el tamaño de la descarga **comprimida** (gzip), y coincide byte a byte con el cuerpo que sirve el API (mismo armado en el script y en el servicio) | Es lo que viaja y lo que la consola necesita para avisar cuánto descarga |
+| La descarga se sirve por fuera del interceptor, con el cuerpo `{ data: BibleDownload }` ya armado y comprimido en memoria por `code-version`; `Cache-Control: private, no-cache` y `Vary: Authorization` | Responder 304 con el ETag sin rearmar 31 000 filas |
+| Un capítulo con `chapter` fuera de 1–200 → 400; inexistente → 404 | Validación de parámetros con Zod |
+| Verificado: 66 libros, 1189 capítulos, 31 102 versículos; reimportar sin `--force` no cambia nada; Juan 3:16 = "Porque de tal manera amó Dios al mundo…"; descarga de 1,25 MB comprimida; 304 con el ETag; sin sesión → 401 | — |

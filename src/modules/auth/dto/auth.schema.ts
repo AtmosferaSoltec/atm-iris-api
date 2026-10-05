@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** Minusculas y sin espacios: el correo es la identidad y se compara exacto. */
-const email = z
+export const email = z
   .string()
   .trim()
   .toLowerCase()
@@ -9,8 +9,8 @@ const email = z
   .max(254, 'Ese correo es demasiado largo.')
   .pipe(z.email('Ese correo no parece válido.'));
 
-const newPassword = z
-  .string()
+export const newPassword = z
+  .string('Escribe una contraseña.')
   .min(8, 'Usa al menos 8 caracteres.')
   .max(128, 'Usa como máximo 128 caracteres.');
 
@@ -68,7 +68,36 @@ export const resetPasswordSchema = verifyResetCodeSchema
     message: 'Las contraseñas no coinciden.',
   });
 
+export const updateProfileSchema = z.object({
+  fullName: z
+    .string('Escribe tu nombre.')
+    .trim()
+    .min(1, 'Escribe tu nombre.')
+    .max(120, 'Usa un nombre más corto.'),
+});
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z
+      .string('Ingresa tu contraseña actual.')
+      .min(1, 'Ingresa tu contraseña actual.')
+      .max(128),
+    password: newPassword,
+    passwordConfirmation: z.string('Repite la contraseña.').min(1, 'Repite la contraseña.'),
+  })
+  .refine((data) => data.password === data.passwordConfirmation, {
+    path: ['passwordConfirmation'],
+    message: 'Las contraseñas no coinciden.',
+  });
+
+export const switchChurchSchema = z.object({
+  churchId: z.string('Indica la iglesia.').trim().min(1, 'Indica la iglesia.').max(64),
+});
+
 export type ClientInput = z.infer<typeof clientSchema>;
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type SwitchChurchInput = z.infer<typeof switchChurchSchema>;
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;

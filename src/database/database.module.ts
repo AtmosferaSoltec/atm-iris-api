@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 
+import { ChurchWriteLock } from './church-write-lock.js';
 import { PrismaService } from './prisma.service.js';
 
 /**
@@ -8,7 +9,7 @@ import { PrismaService } from './prisma.service.js';
  */
 @Global()
 @Module({
-  providers: [PrismaService],
-  exports: [PrismaService],
+  providers: [PrismaService, ChurchWriteLock],
+  exports: [PrismaService, ChurchWriteLock],
 })
 export class DatabaseModule {}

@@ -59,6 +59,7 @@ export class AuthRepository {
           fullName: account.fullName,
           passwordHash: account.passwordHash,
           lastLoginAt: new Date(),
+          lastChurchId: church.id,
         },
       });
       await tx.churchMember.create({
@@ -70,14 +71,28 @@ export class AuthRepository {
   }
 
   /**
-   * La membresia con la que se entra al iniciar sesion: la activa mas antigua.
-   * Elegir entre varias iglesias llega con las invitaciones.
+   * La membresia con la que se entra al iniciar sesion: la de la ultima iglesia
+   * usada si sigue activa; si no, la activa mas antigua.
    */
-  findPrimaryMembership(userId: string) {
+  async findPrimaryMembership(userId: string, lastChurchId: string | null) {
+    if (lastChurchId) {
+      const last = await this.prisma.churchMember.findFirst({
+        where: { userId, churchId: lastChurchId, isActive: true },
+      });
+      if (last) return last;
+    }
+
     return this.prisma.churchMember.findFirst({
       where: { userId, isActive: true },
       orderBy: { createdAt: 'asc' },
-      include: { church: true },
+    });
+  }
+
+  /** Membresias activas con el nombre de la iglesia, para `churches` de la sesion. */
+  findActiveMemberships(userId: string) {
+    return this.prisma.churchMember.findMany({
+      where: { userId, isActive: true },
+      select: { role: true, church: { select: { id: true, name: true } } },
     });
   }
 
@@ -87,11 +102,23 @@ export class AuthRepository {
     });
   }
 
-  async touchLastLogin(userId: string): Promise<void> {
+  /** Marca el login y recuerda la iglesia para el proximo `sign-in`. */
+  async touchLastLogin(userId: string, churchId: string): Promise<void> {
     await this.prisma.user.update({
       where: { id: userId },
-      data: { lastLoginAt: new Date() },
+      data: { lastLoginAt: new Date(), lastChurchId: churchId },
     });
+  }
+
+  async updateFullName(userId: string, fullName: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { fullName },
+    });
+  }
+
+  findUserById(id: string) {
+    return this.prisma.user.findUnique({ where: { id } });
   }
 
   /* --------------------------------------------------------------- Sesiones */
@@ -111,18 +138,32 @@ export class AuthRepository {
   }
 
   /**
-   * Viva = no revocada y sin caducar por inactividad. La consulta el guard en
-   * cada peticion, por eso es una lectura por clave primaria y nada mas.
+   * Lo que el guard comprueba en cada peticion, en una sola consulta: la sesion
+   * viva (no revocada, sin caducar), apuntando a la iglesia del token, con el
+   * usuario activo y su membresia activa en esa iglesia. Devuelve el rol
+   * vigente o null.
+   *
+   * El rol se lee de la base y no del token: asi quitar o degradar a alguien
+   * corta su acceso en el acto, no a los 15 minutos.
    */
-  async isSessionActive(id: string): Promise<boolean> {
-    const session = await this.prisma.session.findUnique({
-      where: { id },
-      select: { revokedAt: true, expiresAt: true },
-    });
+  async findActiveSessionRole(
+    sessionId: string,
+    churchId: string,
+  ): Promise<MemberRole | null> {
+    const rows = await this.prisma.$queryRaw<{ role: MemberRole }[]>`
+      SELECT m.role::text AS role
+      FROM sessions s
+      JOIN users u ON u.id = s.user_id
+      JOIN church_members m ON m.church_id = s.church_id AND m.user_id = s.user_id
+      WHERE s.id = ${sessionId}
+        AND s.church_id = ${churchId}
+        AND s.revoked_at IS NULL
+        AND s.expires_at > now()
+        AND u.is_active
+        AND m.is_active
+    `;
 
-    return Boolean(
-      session && !session.revokedAt && session.expiresAt > new Date(),
-    );
+    return rows[0]?.role ?? null;
   }
 
   /**
@@ -170,6 +211,76 @@ export class AuthRepository {
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date(), revokedReason: reason },
     });
+  }
+
+  /** Solo sesiones del usuario: la de otro responde como si no existiera. */
+  async revokeOwnSession(userId: string, sessionId: string): Promise<boolean> {
+    const { count } = await this.prisma.session.updateMany({
+      where: { id: sessionId, userId, revokedAt: null },
+      data: { revokedAt: new Date(), revokedReason: 'SIGN_OUT' },
+    });
+    return count === 1;
+  }
+
+  /** Sesiones abiertas del usuario en todas sus iglesias, la mas reciente primero. */
+  listActiveSessions(userId: string) {
+    return this.prisma.session.findMany({
+      where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { lastUsedAt: 'desc' },
+    });
+  }
+
+  /**
+   * Lleva la sesion a otra iglesia y rota el refresh token en el mismo paso:
+   * el par anterior apuntaba a la iglesia vieja y deja de servir.
+   */
+  async switchSessionChurch(
+    sessionId: string,
+    userId: string,
+    churchId: string,
+  ): Promise<void> {
+    const now = new Date();
+    await this.prisma.$transaction([
+      this.prisma.session.update({
+        where: { id: sessionId },
+        data: {
+          churchId,
+          refreshGeneration: { increment: 1 },
+          rotatedAt: now,
+          lastUsedAt: now,
+        },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { lastChurchId: churchId },
+      }),
+    ]);
+  }
+
+  /**
+   * Cambio de contrasena desde la sesion: guarda el hash, quema los codigos de
+   * recuperacion vigentes y cierra las **demas** sesiones. La actual sigue.
+   */
+  async changePassword(
+    userId: string,
+    passwordHash: string,
+    keepSessionId: string,
+  ): Promise<void> {
+    const now = new Date();
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash, passwordChangedAt: now },
+      }),
+      this.prisma.passwordResetCode.updateMany({
+        where: { userId, usedAt: null },
+        data: { usedAt: now },
+      }),
+      this.prisma.session.updateMany({
+        where: { userId, revokedAt: null, id: { not: keepSessionId } },
+        data: { revokedAt: now, revokedReason: 'PASSWORD_RESET' },
+      }),
+    ]);
   }
 
   /* -------------------------------------------------- Recuperacion de acceso */

@@ -13,7 +13,7 @@ export type ParsedRefreshToken = { sessionId: string; generation: number };
  * La firma es un HMAC con `REFRESH_TOKEN_SECRET`, asi que la base no guarda
  * ningun token: solo la generacion vigente de cada sesion. Una fuga de la tabla
  * no permite abrir ninguna sesion, y el servidor puede volver a firmar el token
- * vigente cuando dos peticiones refrescan a la vez (ver docs/plans/01-auth.md).
+ * vigente cuando dos peticiones refrescan a la vez (ver docs/plans/01-login/README.md).
  */
 @Injectable()
 export class RefreshTokenService {

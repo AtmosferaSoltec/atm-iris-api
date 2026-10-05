@@ -1,5 +1,5 @@
 /** Rol de una persona dentro de una iglesia. Viaja en minusculas. */
-export type ChurchRole = 'owner' | 'member';
+export type ChurchRole = 'owner' | 'admin' | 'operator';
 
 export type ClientPlatformName = 'web' | 'ios' | 'windows';
 
@@ -29,16 +29,34 @@ export type RequestOrigin = {
   userAgent?: string;
 };
 
-/** Respuesta de `GET /auth/me`. */
+/** Una membresia activa, para el selector de iglesia. */
+export type ChurchSummary = { id: string; name: string; role: ChurchRole };
+
+/** Respuesta de `GET /auth/me` (contrato §4). */
 export type SessionView = {
   user: { id: string; email: string; fullName: string };
-  church: { id: string; name: string };
+  church: { id: string; name: string; timezone: string };
   role: ChurchRole;
+  /** Ya resueltos para el rol: los clientes deciden con esto, nunca con el rol. */
+  permissions: string[];
+  /** Todas las membresias activas, ordenadas por nombre. */
+  churches: ChurchSummary[];
   session: {
     id: string;
     platform: ClientPlatformName;
     deviceName: string | null;
   };
+};
+
+/** Un dispositivo con sesion abierta (`GET /auth/sessions`). */
+export type DeviceSession = {
+  id: string;
+  platform: ClientPlatformName;
+  deviceName: string | null;
+  createdAt: string;
+  lastUsedAt: string;
+  ipAddress: string | null;
+  isCurrent: boolean;
 };
 
 /** Respuesta de sign-up, sign-in y refresh. */

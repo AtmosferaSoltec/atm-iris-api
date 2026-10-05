@@ -47,4 +47,12 @@ Trigger de `sync_version` en `songs`. Actualiza `docs/database/schema.md`.
 
 ## Desviaciones
 
-_(Completar al cerrar la fase.)_
+| Qué | Motivo |
+|---|---|
+| Búsqueda por parecido con `word_similarity(q, search_text) > 0.6` en lugar de `similarity(search_text, q) > 0.2` | `similarity` compara la consulta con la letra completa y da puntajes casi nulos: "castilo" no encontraba "Castillo fuerte". `word_similarity` la compara con el tramo más parecido |
+| Orden con búsqueda: primero las que coinciden en el título (`title_key ILIKE`), luego por parecido y por título | "Ordena por relevancia" del contrato: quien busca "sublime" espera "Sublime gracia" antes que una letra que diga "sublime" |
+| Con `search`, el parámetro `sort` se ignora | El contrato pide relevancia cuando hay búsqueda |
+| `author` ausente se toma como `""`; `copyright` y `label` vacíos se guardan como `null`; textos recortados en los extremos | Interpretación conservadora de "`""` si no hay" (§10) y de los `null` explícitos |
+| La extensión `pg_trgm` y el índice GIN se declaran así: la extensión en el SQL de la migración (`CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA iris`), el índice en el schema (`@@index(..., type: Gin)`) | Sin la preview `postgresqlExtensions`, Prisma ignora las extensiones; el índice declarado en el schema evita deriva |
+| `POST /songs` con `id` existente en la iglesia → 200 tal cual; `PUT` crea (201) o reemplaza (200); `PUT` sobre una borrada → 404 | Mismas reglas que la fase 03 |
+| Verificado con `curl`: "sublime", "senor" (dentro de la letra), "castilo" (tipeo), importar dos veces (la segunda salta todo), duplicado dentro del lote, paginación y `meta`, importación de ~1 MB | — |

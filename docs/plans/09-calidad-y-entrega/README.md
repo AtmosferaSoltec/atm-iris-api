@@ -66,4 +66,12 @@ Entrega el reporte de `00-fundamentos/plataforma.md` §6 y pregunta al usuario s
 
 ## Desviaciones
 
-_(Completar al cerrar la fase.)_
+| Qué | Motivo |
+|---|---|
+| El seed crea además `pastor@montesion.org` como `owner` de Monte Sion (el pastor de Vida Nueva es `admin` allí) | Una iglesia nunca queda sin dueño (regla `LAST_OWNER`) |
+| El seed escribe directo con Prisma (tomando el mismo candado por iglesia que el API); los 10 registros usan tiempos deterministas y la semana pasada los de la maqueta (9:40 · 19:05 · 51:30 · 5:55) | Idempotente y reproducible sin levantar el API |
+| Los esquemas de respuesta de Swagger están escritos a mano en `src/common/swagger/api-schemas.ts` y se aplican con `@ApiData`, `@ApiPaginated` | El API no usa clases DTO (valida con Zod); así cada endpoint documenta su forma `{ data }` del contrato |
+| Las e2e de multimedia y Biblia usan `describe.runIf(...)`: si MinIO no responde o la Biblia no está importada, se saltan y queda una prueba `skip` con el motivo | Lo pide el plan |
+| Corrección encontrada por las e2e: con `STORAGE_PUBLIC_ENDPOINT=` vacío, `ConfigService` devolvía `""` y las URLs se firmaban contra AWS. Ahora vacío cuenta como ausente | Bug real: cualquier `.env` con la variable en blanco lo provocaba |
+| La revisión del contrato (§4 del plan) se hizo con un script de 74 comprobaciones contra el API corriendo: claves exactas de cada tipo, `null` explícitos, enums en minúsculas, fechas ISO con milisegundos, forma de los errores y sus `code` (incluido `429 TOO_MANY_REQUESTS` del login). No apareció ninguna diferencia fuera de las desviaciones ya anotadas en cada fase. `docs/contract/api-v1.md` no se modificó | — |
+| Resultado final: lint limpio, tipos OK, 112 unitarias, 33 e2e (+2 avisos de salto que no aplican con MinIO y Biblia presentes), build OK, sin deriva entre migraciones y schema | — |

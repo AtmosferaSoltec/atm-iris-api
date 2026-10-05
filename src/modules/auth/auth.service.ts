@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -11,10 +12,9 @@ import { hash, verify } from '@node-rs/argon2';
 
 import { API_ERROR_CODES } from '../../common/constants/error-codes.js';
 import type { Env } from '../../config/env.schema.js';
-import type {
-  ClientPlatform,
-  MemberRole,
-} from '../../generated/prisma/client.js';
+import { permissionsOf } from '../../common/constants/permissions.js';
+import type { MemberRole } from '../../generated/prisma/client.js';
+import { byName } from '../../shared/utils/text.js';
 import { MailPort } from '../../integrations/mail/mail.port.js';
 import {
   REFRESH_REUSE_GRACE_SECONDS,
@@ -22,16 +22,17 @@ import {
   RESET_MAX_REQUESTS_PER_DAY,
   RESET_MAX_VERIFICATION_ATTEMPTS,
 } from './auth.constants.js';
+import { toDbPlatform, toPlatform, toRole } from './auth.mapper.js';
 import { AuthRepository, type SessionWithAccount } from './auth.repository.js';
 import type {
   AuthenticatedUser,
   AuthResult,
-  ChurchRole,
-  ClientPlatformName,
+  DeviceSession,
   RequestOrigin,
   SessionView,
 } from './auth.types.js';
 import type {
+  ChangePasswordInput,
   ClientInput,
   ResetPasswordInput,
   SignInInput,
@@ -43,17 +44,6 @@ import { ResetCodeService } from './services/reset-code.service.js';
 import { TokenService } from './services/token.service.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-const PLATFORM_TO_DB: Record<ClientPlatformName, ClientPlatform> = {
-  web: 'WEB',
-  ios: 'IOS',
-  windows: 'WINDOWS',
-};
-
-const toRole = (role: MemberRole): ChurchRole =>
-  role === 'OWNER' ? 'owner' : 'member';
-const toPlatform = (platform: ClientPlatform) =>
-  platform.toLowerCase() as ClientPlatformName;
 
 @Injectable()
 export class AuthService {
@@ -110,7 +100,10 @@ export class AuthService {
       });
     }
 
-    const membership = await this.repository.findPrimaryMembership(user.id);
+    const membership = await this.repository.findPrimaryMembership(
+      user.id,
+      user.lastChurchId,
+    );
     if (!membership) {
       throw new ForbiddenException({
         code: API_ERROR_CODES.NO_CHURCH_ACCESS,
@@ -118,13 +111,13 @@ export class AuthService {
       });
     }
 
-    await this.repository.touchLastLogin(user.id);
+    await this.repository.touchLastLogin(user.id, membership.churchId);
 
     return this.openSession(user.id, membership.churchId, input.client, origin);
   }
 
   /**
-   * Rota el refresh token. Ver docs/plans/01-auth.md: generacion vigente →
+   * Rota el refresh token. Ver docs/plans/01-login/README.md: generacion vigente →
    * rota; anterior dentro de la gracia → devuelve el vigente; cualquier otra →
    * alguien tiene una copia, se revoca la sesion.
    */
@@ -183,9 +176,104 @@ export class AuthService {
       user.userId,
       user.churchId,
     );
-    if (!session || !membership) throw this.invalidRefreshToken();
+    if (!session || !membership?.isActive) throw this.invalidRefreshToken();
 
     return this.toView(session, membership.role);
+  }
+
+  /* ----------------------------------------------------- Cuenta y dispositivos */
+
+  /**
+   * Lleva esta misma sesion a otra iglesia del usuario y entrega tokens nuevos.
+   * El par anterior queda invalido: su access token apunta a la iglesia vieja y
+   * el guard lo rechaza.
+   */
+  async switchChurch(
+    user: AuthenticatedUser,
+    churchId: string,
+  ): Promise<AuthResult> {
+    const membership = await this.repository.findMembership(
+      user.userId,
+      churchId,
+    );
+    if (!membership?.isActive) {
+      throw new NotFoundException({
+        code: API_ERROR_CODES.NOT_FOUND,
+        message: 'No perteneces a esa iglesia.',
+      });
+    }
+
+    await this.repository.switchSessionChurch(
+      user.sessionId,
+      user.userId,
+      churchId,
+    );
+
+    return this.issue(await this.reload(user.sessionId));
+  }
+
+  async updateProfile(
+    user: AuthenticatedUser,
+    fullName: string,
+  ): Promise<SessionView> {
+    await this.repository.updateFullName(user.userId, fullName);
+    return this.getSession(user);
+  }
+
+  /**
+   * Cambia la contrasena con la actual. Cierra las demas sesiones (quien la
+   * cambia suele sospechar de otro dispositivo) pero no la que hace el cambio.
+   */
+  async changePassword(
+    user: AuthenticatedUser,
+    input: ChangePasswordInput,
+  ): Promise<void> {
+    const account = await this.repository.findUserById(user.userId);
+    if (!account) throw this.invalidRefreshToken();
+
+    if (!(await this.verifyPassword(input.currentPassword, account.passwordHash))) {
+      throw new BadRequestException({
+        code: API_ERROR_CODES.INVALID_CURRENT_PASSWORD,
+        message: 'La contraseña actual no es correcta.',
+        errors: { currentPassword: 'La contraseña actual no es correcta.' },
+      });
+    }
+
+    await this.repository.changePassword(
+      user.userId,
+      await hash(input.password),
+      user.sessionId,
+    );
+
+    await this.notifyPasswordChanged(account);
+  }
+
+  async listSessions(user: AuthenticatedUser): Promise<DeviceSession[]> {
+    const sessions = await this.repository.listActiveSessions(user.userId);
+
+    return sessions.map((session) => ({
+      id: session.id,
+      platform: toPlatform(session.platform),
+      deviceName: session.deviceName,
+      createdAt: session.createdAt.toISOString(),
+      lastUsedAt: session.lastUsedAt.toISOString(),
+      ipAddress: session.ipAddress,
+      isCurrent: session.id === user.sessionId,
+    }));
+  }
+
+  /** Cierra un dispositivo propio. Cerrar el actual equivale a `sign-out`. */
+  async revokeSession(user: AuthenticatedUser, sessionId: string): Promise<void> {
+    const revoked = await this.repository.revokeOwnSession(
+      user.userId,
+      sessionId,
+    );
+    if (!revoked) {
+      throw new NotFoundException({
+        code: API_ERROR_CODES.NOT_FOUND,
+        message: 'Esa sesión no existe o ya estaba cerrada.',
+      });
+    }
   }
 
   /* --------------------------------------------------- Recuperacion de acceso */
@@ -240,18 +328,7 @@ export class AuthService {
     const { user } = await this.checkResetCode(input);
 
     await this.repository.resetPassword(user.id, await hash(input.password));
-
-    try {
-      await this.mail.sendPasswordChanged({
-        to: user.email,
-        fullName: user.fullName,
-      });
-    } catch (error) {
-      this.logger.error(
-        `No se pudo avisar del cambio de contrasena al usuario ${user.id}`,
-        error instanceof Error ? error.stack : String(error),
-      );
-    }
+    await this.notifyPasswordChanged(user);
   }
 
   /* ----------------------------------------------------------------- Internos */
@@ -285,7 +362,11 @@ export class AuthService {
     return { user, record };
   }
 
-  private async openSession(
+  /**
+   * Abre una sesion nueva en una iglesia. Publico porque aceptar una invitacion
+   * (modulo `members`) termina igual que un login.
+   */
+  async openSession(
     userId: string,
     churchId: string,
     client: ClientInput,
@@ -294,7 +375,7 @@ export class AuthService {
     const session = await this.repository.createSession({
       userId,
       churchId,
-      platform: PLATFORM_TO_DB[client.platform],
+      platform: toDbPlatform(client.platform),
       deviceName: client.deviceName || null,
       expiresAt: this.nextExpiry(),
       ipAddress: origin.ipAddress ?? null,
@@ -313,7 +394,7 @@ export class AuthService {
     );
     if (!membership?.isActive) throw this.invalidRefreshToken();
 
-    const view = this.toView(session, membership.role);
+    const view = await this.toView(session, membership.role);
     const access = await this.tokens.signAccessToken({
       sub: session.userId,
       churchId: session.churchId,
@@ -339,21 +420,56 @@ export class AuthService {
     return session;
   }
 
-  private toView(session: SessionWithAccount, role: MemberRole): SessionView {
+  /** La unica fabrica de `SessionView`: todos los endpoints pasan por aqui. */
+  private async toView(
+    session: SessionWithAccount,
+    role: MemberRole,
+  ): Promise<SessionView> {
+    const memberships = await this.repository.findActiveMemberships(
+      session.userId,
+    );
+    const churchRole = toRole(role);
+
     return {
       user: {
         id: session.user.id,
         email: session.user.email,
         fullName: session.user.fullName,
       },
-      church: { id: session.church.id, name: session.church.name },
-      role: toRole(role),
+      church: {
+        id: session.church.id,
+        name: session.church.name,
+        timezone: session.church.timezone,
+      },
+      role: churchRole,
+      permissions: permissionsOf(churchRole),
+      churches: memberships
+        .map((m) => ({ id: m.church.id, name: m.church.name, role: toRole(m.role) }))
+        .sort(byName((church) => church.name)),
       session: {
         id: session.id,
         platform: toPlatform(session.platform),
         deviceName: session.deviceName,
       },
     };
+  }
+
+  private async notifyPasswordChanged(user: {
+    id: string;
+    email: string;
+    fullName: string;
+  }): Promise<void> {
+    try {
+      await this.mail.sendPasswordChanged({
+        to: user.email,
+        fullName: user.fullName,
+      });
+    } catch (error) {
+      this.logger.error(
+        `No se pudo avisar del cambio de contrasena al usuario ${user.id}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   private isUsable(session: SessionWithAccount): boolean {

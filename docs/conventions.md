@@ -10,7 +10,8 @@ El mismo nombre en la base, el API, la web y las apps.
 |---|---|---|
 | Iglesia | `church` | El tenant. Todo cuelga de una iglesia |
 | Responsable / dueño | `owner` | Rol de quien crea la cuenta |
-| Miembro | `member` | Rol de quien sea invitado (llega más adelante) |
+| Miembro (del equipo) | `member` | Membresía de un usuario en una iglesia. Roles: `owner` (dueño), `admin` (administrador), `operator` (operador) |
+| Invitación | `invitation` | Correo con enlace para sumarse al equipo |
 | Sesión | `session` | Una por dispositivo |
 | Consola | `console` | La app de iPad o Windows que proyecta |
 | Canción / letra | `song` | Se proyecta por secciones |
@@ -20,6 +21,9 @@ El mismo nombre en la base, el API, la web y las apps.
 | Persona | `person` | Quien dirige un bloque. No es un usuario |
 | Registro de tiempos | `serviceRecord` | Tiempos reales de un servicio ya hecho |
 | Módulos | `modules` | Biblia, Multimedia, Control de tiempo |
+| Multimedia / archivo | `media` | Imagen, video o audio (`image`, `video`, `audio`) |
+| Fondo | `background` | Imagen marcada `isBackground` para la consola |
+| Sincronización | `sync` | Feed `/sync/changes` con el que las consolas ponen al día su copia local |
 
 ## Iris en particular
 

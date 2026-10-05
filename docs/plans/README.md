@@ -31,16 +31,16 @@ Marca cada casilla al terminar la fase y completa su sección *Desviaciones*.
 
 | # | Fase | Estado |
 |---|---|---|
-| 00 | [Fundamentos transversales](00-fundamentos/README.md): permisos, versión de sincronización, borrado suave, paginación, request id | [ ] |
+| 00 | [Fundamentos transversales](00-fundamentos/README.md): permisos, versión de sincronización, borrado suave, paginación, request id | [x] |
 | 01 | [Login y sesiones](01-login/README.md) | [x] ya hecha |
-| 02 | [Cuenta y equipo](02-cuenta-y-equipo/README.md): roles, cambio de iglesia, perfil, contraseña, dispositivos, invitaciones | [ ] |
-| 03 | [Iglesia](03-iglesia/README.md): ajustes, módulos, personas, tipos de servicio | [ ] |
-| 04 | [Canciones](04-canciones/README.md): CRUD, búsqueda, importación | [ ] |
-| 05 | [Multimedia](05-multimedia/README.md): almacenamiento S3/MinIO, subidas firmadas, cuota | [ ] |
-| 06 | [Biblia](06-biblia/README.md): importar RVR1909, consulta y descarga completa | [ ] |
-| 07 | [Tiempos](07-tiempos/README.md): registros de servicio | [ ] |
-| 08 | [Sincronización](08-sincronizacion/README.md): feed `/sync/changes` para las consolas | [ ] |
-| 09 | [Calidad y entrega](09-calidad-y-entrega/README.md): pruebas, documentación, datos de ejemplo, reporte | [ ] |
+| 02 | [Cuenta y equipo](02-cuenta-y-equipo/README.md): roles, cambio de iglesia, perfil, contraseña, dispositivos, invitaciones | [x] |
+| 03 | [Iglesia](03-iglesia/README.md): ajustes, módulos, personas, tipos de servicio | [x] |
+| 04 | [Canciones](04-canciones/README.md): CRUD, búsqueda, importación | [x] |
+| 05 | [Multimedia](05-multimedia/README.md): almacenamiento S3/MinIO, subidas firmadas, cuota | [x] |
+| 06 | [Biblia](06-biblia/README.md): importar RVR1909, consulta y descarga completa | [x] |
+| 07 | [Tiempos](07-tiempos/README.md): registros de servicio | [x] |
+| 08 | [Sincronización](08-sincronizacion/README.md): feed `/sync/changes` para las consolas | [x] |
+| 09 | [Calidad y entrega](09-calidad-y-entrega/README.md): pruebas, documentación, datos de ejemplo, reporte | [x] |
 | 99 | [Revisión final](99-revision-final/README.md) — **no es tuya**: la hace el agente revisor cuando los 4 repos terminen | — |
 
 ## Reglas propias de este repo

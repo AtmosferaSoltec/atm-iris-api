@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 
 import { AppModule } from './app.module.js';
+import { API_SCHEMAS } from './common/swagger/api-schemas.js';
 import { API_PREFIX, configureApp } from './app.setup.js';
 import type { Env } from './config/env.schema.js';
 
@@ -30,13 +31,20 @@ async function bootstrap(): Promise<void> {
         .addBearerAuth()
         .build(),
     );
+    // Los tipos del contrato, escritos a mano en api-schemas.ts (no hay DTO de clase).
+    document.components = {
+      ...document.components,
+      schemas: { ...document.components?.schemas, ...API_SCHEMAS },
+    };
     SwaggerModule.setup(`${API_PREFIX}/docs`, app, document);
   }
 
   // Docker detiene el contenedor cerrando el pool de conexiones.
   app.enableShutdownHooks();
 
-  await app.listen(config.get('PORT', { infer: true }));
+  // Todas las interfaces: la PC de Windows llega por la IP de la Mac en la red
+  // local durante la integracion.
+  await app.listen(config.get('PORT', { infer: true }), '0.0.0.0');
 }
 
 await bootstrap();

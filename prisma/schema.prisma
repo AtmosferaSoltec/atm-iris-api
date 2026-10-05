@@ -1,15 +1,18 @@
 // Iris · cuentas, iglesias y contenido.
 //
 // El dominio y sus reglas estan en docs/BACKEND_SPEC.md; las decisiones de
-// autenticacion, en docs/plans/01-auth.md.
+// autenticacion, en docs/plans/01-login/README.md.
 //
 // Convenciones: tablas en snake_case plural y columnas en snake_case via @map;
 // en TypeScript quedan en camelCase. Fechas en Timestamptz(3), siempre UTC.
 
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "esm"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  moduleFormat    = "esm"
+  // Indices unicos parciales (`WHERE deleted_at IS NULL`) declarados en el
+  // schema: sin esto `migrate dev` los ve como deriva y los intenta borrar.
+  previewFeatures = ["partialIndexes"]
 }
 
 // Desde Prisma 7 las URLs de conexion viven en prisma.config.ts.
@@ -21,9 +24,12 @@ datasource db {
 // Enums
 // ===========================================================================
 
+/// Roles fijos de la v1. Los permisos de cada uno viven en
+/// src/common/constants/permissions.ts, no en tablas.
 enum MemberRole {
   OWNER
-  MEMBER
+  ADMIN
+  OPERATOR
 
   @@map("member_role")
 }
@@ -38,12 +44,38 @@ enum ClientPlatform {
   @@map("client_platform")
 }
 
+enum MediaKind {
+  IMAGE
+  VIDEO
+  AUDIO
+
+  @@map("media_kind")
+}
+
+/// `ADJUSTED` solo lo pone la API cuando alguien corrige la duracion real.
+enum BlockStatus {
+  COMPLETED
+  SKIPPED
+  ADJUSTED
+
+  @@map("block_status")
+}
+
+enum Testament {
+  OLD
+  NEW
+
+  @@map("testament")
+}
+
 enum SessionRevokedReason {
   SIGN_OUT
   SIGN_OUT_ALL
   PASSWORD_RESET
   /// Llego un refresh token ya rotado: alguien mas tiene una copia.
   TOKEN_REUSE
+  /// Lo quitaron del equipo de la iglesia de esta sesion.
+  MEMBER_REMOVED
 
   @@map("session_revoked_reason")
 }
@@ -54,14 +86,38 @@ enum SessionRevokedReason {
 
 /// El espacio de datos (tenant). Todo el contenido cuelga de una iglesia.
 model Church {
-  id        String   @id @default(uuid(7))
-  name      String   @db.VarChar(120)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id       String @id @default(uuid(7))
+  name     String @db.VarChar(120)
+  /// Zona IANA. "Hoy", los horarios y los resumenes se calculan en esta zona;
+  /// todas las fechas se guardan y viajan en UTC.
+  timezone String @default("America/Lima") @db.VarChar(64)
 
-  members  ChurchMember[]
-  sessions Session[]
+  /// Modulos de la consola. Letras siempre esta activo, por eso no tiene columna.
+  bibleEnabled       Boolean @default(true) @map("bible_enabled")
+  multimediaEnabled  Boolean @default(true) @map("multimedia_enabled")
+  timeControlEnabled Boolean @default(true) @map("time_control_enabled")
+  /// Cuota de almacenamiento de multimedia. 5 GiB por defecto.
+  storageQuotaBytes  BigInt  @default(5368709120) @map("storage_quota_bytes")
 
+  /// Version de sincronizacion: la pone el trigger `bump_sync_version` en cada
+  /// INSERT/UPDATE (ver docs/database/schema.md). Nunca se escribe desde el codigo.
+  syncVersion BigInt   @default(0) @map("sync_version")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  members        ChurchMember[]
+  sessions       Session[]
+  invitations    Invitation[]
+  people         Person[]
+  serviceTypes   ServiceType[]
+  songs          Song[]
+  mediaUploads   MediaUpload[]
+  mediaAssets    MediaAsset[]
+  serviceRecords ServiceRecord[]
+  /// Usuarios que entraron aqui la ultima vez.
+  lastUsers      User[]          @relation("UserLastChurch")
+
+  @@index([syncVersion])
   @@map("churches")
 }
 
@@ -75,12 +131,18 @@ model User {
   isActive          Boolean   @default(true) @map("is_active")
   lastLoginAt       DateTime? @map("last_login_at") @db.Timestamptz(3)
   passwordChangedAt DateTime? @map("password_changed_at") @db.Timestamptz(3)
+  /// La iglesia a la que entra `sign-in`: la ultima usada. Si ya no es una
+  /// membresia activa, se entra a la membresia activa mas antigua.
+  lastChurchId      String?   @map("last_church_id")
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  lastChurch         Church?             @relation("UserLastChurch", fields: [lastChurchId], references: [id], onDelete: SetNull)
   memberships        ChurchMember[]
   sessions           Session[]
   passwordResetCodes PasswordResetCode[]
+  sentInvitations    Invitation[]
+  mediaUploads       MediaUpload[]
 
   @@map("users")
 }
@@ -89,7 +151,7 @@ model ChurchMember {
   id        String     @id @default(uuid(7))
   churchId  String     @map("church_id")
   userId    String     @map("user_id")
-  role      MemberRole @default(MEMBER)
+  role      MemberRole @default(OPERATOR)
   isActive  Boolean    @default(true) @map("is_active")
   createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -104,7 +166,7 @@ model ChurchMember {
 
 /// Una sesion por dispositivo. El refresh token no se guarda: se firma con
 /// HMAC sobre (id, refreshGeneration), asi una fuga de esta tabla no entrega
-/// ningun token valido. Ver docs/plans/01-auth.md.
+/// ningun token valido. Ver docs/plans/01-login/README.md.
 model Session {
   id                String                @id @default(uuid(7))
   userId            String                @map("user_id")
@@ -129,6 +191,8 @@ model Session {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   church Church @relation(fields: [churchId], references: [id], onDelete: Cascade)
 
+  serviceRecords ServiceRecord[]
+
   @@index([userId])
   @@map("sessions")
 }
@@ -151,4 +215,332 @@ model PasswordResetCode {
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("password_reset_codes")
+}
+
+/// Invitacion por correo a una iglesia. El token (32 bytes, base64url) solo
+/// viaja en el enlace del correo; aqui se guarda su SHA-256, asi una fuga de la
+/// tabla no deja aceptar ninguna invitacion.
+model Invitation {
+  id              String     @id @default(uuid(7))
+  churchId        String     @map("church_id")
+  /// En minusculas, como `users.email`.
+  email           String     @db.VarChar(254)
+  role            MemberRole
+  /// SHA-256 en hex del token del enlace.
+  tokenHash       String     @unique @map("token_hash") @db.VarChar(64)
+  invitedByUserId String     @map("invited_by_user_id")
+  expiresAt       DateTime   @map("expires_at") @db.Timestamptz(3)
+  acceptedAt      DateTime?  @map("accepted_at") @db.Timestamptz(3)
+  /// Revocada a mano o reemplazada al reinvitar al mismo correo.
+  revokedAt       DateTime?  @map("revoked_at") @db.Timestamptz(3)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  church    Church @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  invitedBy User   @relation(fields: [invitedByUserId], references: [id], onDelete: Cascade)
+
+  /// Una sola invitacion pendiente por correo e iglesia.
+  @@unique([churchId, email], where: raw("accepted_at IS NULL AND revoked_at IS NULL"))
+  @@index([churchId])
+  @@map("invitations")
+}
+
+// ===========================================================================
+// Contenido de la iglesia
+// ===========================================================================
+//
+// Tablas sincronizables: `sync_version` lo pone el trigger `bump_sync_version`
+// (ver docs/database/schema.md) y toda escritura pasa por `ChurchWriteLock`.
+// Borrado suave con `deleted_at`.
+
+/// Quien dirige un bloque del servicio. No es un usuario: no inicia sesion.
+model Person {
+  id          String    @id @default(uuid(7))
+  churchId    String    @map("church_id")
+  name        String    @db.VarChar(80)
+  /// `nameKey(name)`: sin acentos, minusculas y espacios colapsados. Lo calcula
+  /// el servicio; es lo que hace unico al nombre.
+  nameKey     String    @map("name_key") @db.VarChar(80)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
+  syncVersion BigInt    @default(0) @map("sync_version")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  church         Church          @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  blockTemplates BlockTemplate[]
+
+  /// Unico entre las no borradas: se puede volver a crear el nombre de una borrada.
+  @@unique([churchId, nameKey], where: raw("deleted_at IS NULL"))
+  @@index([churchId, syncVersion])
+  @@map("people")
+}
+
+/// Plantilla de un servicio (Culto general, Jovenes...). Con bloques "controla
+/// tiempo"; sin bloques es "Solo proyeccion".
+model ServiceType {
+  id              String    @id @default(uuid(7))
+  churchId        String    @map("church_id")
+  name            String    @db.VarChar(60)
+  nameKey         String    @map("name_key") @db.VarChar(60)
+  /// Uno de los seis tonos de la paleta del contrato, en `#RRGGBB`.
+  color           String    @db.Char(7)
+  /// Horario habitual en la hora local de la iglesia: 1 = domingo ... 7 = sabado.
+  /// Los tres son null o ninguno lo es (CHECK en la migracion).
+  scheduleWeekday Int?      @map("schedule_weekday") @db.SmallInt
+  scheduleHour    Int?      @map("schedule_hour") @db.SmallInt
+  scheduleMinute  Int?      @map("schedule_minute") @db.SmallInt
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(3)
+  syncVersion     BigInt    @default(0) @map("sync_version")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  church  Church          @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  blocks  BlockTemplate[]
+  records ServiceRecord[]
+
+  @@unique([churchId, nameKey], where: raw("deleted_at IS NULL"))
+  @@index([churchId, syncVersion])
+  @@map("service_types")
+}
+
+/// Bloque de una plantilla. Sin version propia: al cambiar, el repositorio toca
+/// el `updated_at` del tipo de servicio y es el padre el que sube de version.
+model BlockTemplate {
+  id              String  @id @default(uuid(7))
+  serviceTypeId   String  @map("service_type_id")
+  /// Orden dentro del servicio, desde 0.
+  position        Int     @db.SmallInt
+  name            String  @db.VarChar(60)
+  /// 1-240 (CHECK en la migracion).
+  plannedMinutes  Int     @map("planned_minutes") @db.SmallInt
+  /// Responsable sugerido. Borrar la persona lo deja en null.
+  defaultPersonId String? @map("default_person_id")
+
+  serviceType   ServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
+  defaultPerson Person?     @relation(fields: [defaultPersonId], references: [id], onDelete: SetNull)
+
+  @@unique([serviceTypeId, position])
+  @@map("block_templates")
+}
+
+/// Letra de una cancion. Una seccion es una pantalla del TV.
+model Song {
+  id          String    @id @default(uuid(7))
+  churchId    String    @map("church_id")
+  title       String    @db.VarChar(120)
+  /// `nameKey(title)`. No es unico (dos versiones de la misma cancion son
+  /// validas); solo la importacion lo usa para saltar repetidas.
+  titleKey    String    @map("title_key") @db.VarChar(120)
+  author      String    @default("") @db.VarChar(120)
+  copyright   String?   @db.VarChar(200)
+  /// `searchText(title, author, ...secciones)`: lo recalcula el servicio en cada
+  /// escritura. La busqueda usa ILIKE y trigramas (pg_trgm) sobre esta columna.
+  searchText  String    @map("search_text")
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
+  syncVersion BigInt    @default(0) @map("sync_version")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  church   Church        @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  sections SongSection[]
+
+  @@index([churchId, titleKey])
+  @@index([churchId, syncVersion])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin, map: "songs_search_text_trgm_idx")
+  @@map("songs")
+}
+
+/// Sin version propia: se reemplazan completas en cada escritura de la cancion.
+model SongSection {
+  id       String  @id @default(uuid(7))
+  songId   String  @map("song_id")
+  position Int     @db.SmallInt
+  /// "Coro", "Estrofa 1"... Opcional.
+  label    String? @db.VarChar(40)
+  text     String  @db.VarChar(2000)
+
+  song Song @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([songId, position])
+  @@map("song_sections")
+}
+
+// ===========================================================================
+// Multimedia
+// ===========================================================================
+//
+// Los bytes viven en el almacenamiento S3 compatible (MinIO / R2), nunca en la
+// base ni pasan por el API. Claves: churches/<churchId>/media/<id>/<nombre>.
+
+/// Ticket de subida: reserva cuota durante una hora mientras el cliente sube el
+/// archivo con la URL firmada. Al confirmarse se crea el `MediaAsset` con el
+/// mismo id. Los vencidos sin confirmar los limpia la tarea horaria.
+model MediaUpload {
+  id              String    @id @default(uuid(7))
+  churchId        String    @map("church_id")
+  kind            MediaKind
+  fileName        String    @map("file_name") @db.VarChar(200)
+  contentType     String    @map("content_type") @db.VarChar(100)
+  sizeBytes       BigInt    @map("size_bytes")
+  /// Clave del objeto. Nunca se expone al cliente.
+  objectKey       String    @map("object_key") @db.VarChar(400)
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(3)
+  confirmedAt     DateTime? @map("confirmed_at") @db.Timestamptz(3)
+  createdByUserId String    @map("created_by_user_id")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  church    Church @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([churchId, expiresAt])
+  @@index([expiresAt])
+  @@map("media_uploads")
+}
+
+/// Imagen, video o audio ya subido.
+model MediaAsset {
+  id              String    @id
+  churchId        String    @map("church_id")
+  kind            MediaKind
+  title           String    @db.VarChar(120)
+  /// `nameKey(title)`, para buscar sin acentos.
+  titleKey        String    @map("title_key") @db.VarChar(120)
+  description     String?   @db.VarChar(500)
+  fileName        String    @map("file_name") @db.VarChar(200)
+  contentType     String    @map("content_type") @db.VarChar(100)
+  /// Cuenta para la cuota mientras no este borrado.
+  sizeBytes       BigInt    @map("size_bytes")
+  /// Los mide el cliente que sube. Duracion: audio y video; medidas: imagen y video.
+  durationSeconds Int?      @map("duration_seconds")
+  width           Int?
+  height          Int?
+  /// Solo imagenes: aparece en el selector de fondos de la consola.
+  isBackground    Boolean   @default(false) @map("is_background")
+  objectKey       String    @map("object_key") @db.VarChar(400)
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(3)
+  /// Cuando la tarea horaria borro el archivo del almacenamiento (24 h despues
+  /// del borrado suave, para que las consolas alcancen a sincronizar).
+  objectDeletedAt DateTime? @map("object_deleted_at") @db.Timestamptz(3)
+  syncVersion     BigInt    @default(0) @map("sync_version")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  church Church @relation(fields: [churchId], references: [id], onDelete: Cascade)
+
+  @@index([churchId, kind, createdAt(sort: Desc)])
+  @@index([churchId, syncVersion])
+  @@map("media_assets")
+}
+
+// ===========================================================================
+// Biblia
+// ===========================================================================
+//
+// Contenido global, sin `church_id`: el mismo texto para todas las iglesias.
+// Lo carga `pnpm db:import-bible` (scripts/import-bible.ts).
+
+/// Una traduccion. En la v1 solo la Reina-Valera 1909 (dominio publico).
+model BibleTranslation {
+  /// "rvr1909".
+  code      String @id @db.VarChar(20)
+  name      String @db.VarChar(80)
+  language  String @db.Char(2)
+  /// Sube con cada reimportacion forzada; las consolas vuelven a descargar
+  /// cuando cambia.
+  version   Int
+  /// Tamano de la descarga completa comprimida (gzip), para avisar en la consola.
+  sizeBytes Int    @map("size_bytes")
+
+  books BibleBook[]
+
+  @@map("bible_translations")
+}
+
+model BibleBook {
+  translationCode String    @map("translation_code") @db.VarChar(20)
+  /// Codigo USFM: "GEN", "PSA", "JHN", "REV".
+  id              String    @db.VarChar(3)
+  name            String    @db.VarChar(40)
+  testament       Testament
+  chapterCount    Int       @map("chapter_count") @db.SmallInt
+  /// Orden canonico, 1-66.
+  position        Int       @db.SmallInt
+
+  translation BibleTranslation @relation(fields: [translationCode], references: [code], onDelete: Cascade)
+  verses      BibleVerse[]
+
+  @@id([translationCode, id])
+  @@map("bible_books")
+}
+
+model BibleVerse {
+  translationCode String @map("translation_code") @db.VarChar(20)
+  bookId          String @map("book_id") @db.VarChar(3)
+  chapter         Int    @db.SmallInt
+  verse           Int    @db.SmallInt
+  /// Puede estar vacio: algunos versiculos vienen unidos al anterior en esta
+  /// versificacion (p. ej. Numeros 12:16).
+  text            String
+
+  book BibleBook @relation(fields: [translationCode, bookId], references: [translationCode, id], onDelete: Cascade)
+
+  @@id([translationCode, bookId, chapter, verse])
+  @@map("bible_verses")
+}
+
+// ===========================================================================
+// Tiempos
+// ===========================================================================
+
+/// Tiempos reales de un servicio ya hecho, tal como los manda la consola al
+/// terminar. Solo tiempos: lo que se proyecto nunca se guarda.
+model ServiceRecord {
+  /// Lo genera la consola: reintentar el envio desde su cola no duplica.
+  id                 String    @id
+  churchId           String    @map("church_id")
+  /// Inicio del primer bloque, en UTC.
+  date               DateTime  @db.Timestamptz(3)
+  /// Sin cascada: el tipo de servicio solo se borra en suave y el registro lo
+  /// conserva aunque este borrado.
+  serviceTypeId      String    @map("service_type_id")
+  /// Copia del nombre al guardar, para mostrarlo si el tipo se borra.
+  serviceTypeName    String    @map("service_type_name") @db.VarChar(60)
+  /// Sesion (dispositivo) que lo creo.
+  createdBySessionId String?   @map("created_by_session_id")
+  deletedAt          DateTime? @map("deleted_at") @db.Timestamptz(3)
+  syncVersion        BigInt    @default(0) @map("sync_version")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  church           Church        @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  serviceType      ServiceType   @relation(fields: [serviceTypeId], references: [id], onDelete: NoAction)
+  createdBySession Session?      @relation(fields: [createdBySessionId], references: [id], onDelete: SetNull)
+  blocks           BlockRecord[]
+
+  @@index([churchId, date(sort: Desc)])
+  @@index([churchId, syncVersion])
+  @@map("service_records")
+}
+
+/// Un bloque del servicio con su tiempo previsto y real. Sin version propia:
+/// cambiarlo toca el registro padre.
+model BlockRecord {
+  /// Lo genera la consola.
+  id              String      @id
+  serviceRecordId String      @map("service_record_id")
+  position        Int         @db.SmallInt
+  name            String      @db.VarChar(60)
+  plannedSeconds  Int         @map("planned_seconds")
+  /// 0 si se omitio.
+  actualSeconds   Int         @map("actual_seconds")
+  /// Sin clave foranea a proposito: el registro conserva el id de una persona
+  /// aunque despues se borre (y su nombre en `person_name`).
+  personId        String?     @map("person_id")
+  personName      String?     @map("person_name") @db.VarChar(80)
+  status          BlockStatus
+
+  serviceRecord ServiceRecord @relation(fields: [serviceRecordId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceRecordId, position])
+  @@index([personId])
+  @@map("block_records")
 }

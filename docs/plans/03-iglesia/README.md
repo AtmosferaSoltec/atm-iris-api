@@ -71,4 +71,14 @@ Módulos `src/modules/church/`, `src/modules/people/`, `src/modules/service-type
 
 ## Desviaciones
 
-_(Completar al cerrar la fase.)_
+| Qué | Motivo |
+|---|---|
+| `PUT /service-types/:id` responde **201** cuando crea y **200** cuando reemplaza | El contrato no fija el código del `PUT`; se sigue la misma regla que `POST` (201) y que `PUT /service-records` (201/200). Todos son 2xx |
+| `POST /people` y `POST /service-types` con un `id` que ya existe en la iglesia devuelven 200 con el recurso **tal cual**, aunque esté borrado | Es un reintento de la cola de la consola: la creación original ya ocurrió. La consola se entera del borrado por la sincronización |
+| `PUT /service-types/:id` sobre un tipo **borrado** → 404 | Contrato §1.2: lo borrado responde 404. Revivirlo desharía un borrado hecho por otra persona |
+| Un bloque con un `id` que pertenece a otro tipo de servicio → `409 ID_CONFLICT` con `errors["blocks.N.id"]`; ids de bloque repetidos en el mismo cuerpo → 400 | El contrato solo dice que los bloques con `id` lo conservan; esto evita "robar" bloques de otro tipo |
+| `PATCH /church` sin `name` ni `timezone` → 400 | No hay nada que cambiar |
+| La zona horaria se valida con `Intl.supportedValuesOf('timeZone')` más `UTC` | Algunas versiones de ICU no listan `UTC` aunque la acepten |
+| Los nombres se guardan recortados pero sin colapsar espacios internos (`" jose  perez "` → `"jose  perez"`); la unicidad compara por `nameKey` | El contrato solo define `nameKey` para comparar; el nombre visible se respeta |
+| `storage.usedBytes` devuelve 0 y `blockCount` 0 hasta que existan sus tablas (fases 05 y 07), desde métodos del repositorio que esas fases completan | Lo indica el plan |
+| Verificado con `curl` (25 comprobaciones): forma de `Church`, zona inválida, módulos, `PERSON_NAME_TAKEN` y reuso del nombre tras borrar, idempotencia e `ID_CONFLICT`, 404 entre iglesias, reemplazo de bloques (ids conservados, reorden), borrar responsable sugerido limpia el bloque y sube la versión | — |

@@ -44,12 +44,36 @@ export const envSchema = z.object({
 
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
 
+  /** Raiz de la web: los enlaces de los correos (invitaciones) apuntan aqui. */
+  WEB_URL: z.url('WEB_URL debe ser una URL').default('http://localhost:3000'),
+
   /** Freno general, por IP. Holgado: una pantalla dispara varias peticiones. */
   THROTTLE_TTL: z.coerce.number().int().positive().default(60),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(300),
   /** Intentos de login por IP. Estrecho: frena a quien prueba contrasenas. */
   LOGIN_THROTTLE_TTL: z.coerce.number().int().positive().default(60),
   LOGIN_THROTTLE_LIMIT: z.coerce.number().int().positive().default(5),
+
+  /**
+   * Almacenamiento S3 compatible (MinIO en local, Cloudflare R2 en produccion).
+   * Opcionales en desarrollo: sin ellas el API arranca y la subida de archivos
+   * responde 503. En produccion son obligatorias (ver StorageModule).
+   */
+  STORAGE_ENDPOINT: blankAsMissing(z.url('STORAGE_ENDPOINT debe ser una URL').optional()),
+  STORAGE_REGION: blankAsMissing(z.string().default('auto')),
+  STORAGE_ACCESS_KEY_ID: blankAsMissing(z.string().optional()),
+  STORAGE_SECRET_ACCESS_KEY: blankAsMissing(z.string().optional()),
+  STORAGE_BUCKET: blankAsMissing(z.string().default('iris-media')),
+  /** MinIO necesita rutas `host/bucket/clave`; R2 acepta las dos formas. */
+  STORAGE_FORCE_PATH_STYLE: blankAsMissing(z.stringbool().default(false)),
+  /**
+   * Host con el que se firman las URLs que reciben los clientes. Por defecto el
+   * mismo `STORAGE_ENDPOINT`; al integrar la PC de Windows se pone la IP de la
+   * Mac (`http://192.168.x.x:9000`), porque `localhost` no le sirve.
+   */
+  STORAGE_PUBLIC_ENDPOINT: blankAsMissing(
+    z.url('STORAGE_PUBLIC_ENDPOINT debe ser una URL').optional(),
+  ),
 
   /** Sin estas dos, en desarrollo el correo cae al log (ver MailModule). */
   MAIL_FROM: blankAsMissing(z.string().optional()),

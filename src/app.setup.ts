@@ -2,6 +2,7 @@ import type { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 
+import { REQUEST_ID_HEADER } from './common/middleware/request-id.middleware.js';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter.js';
 import { ResponseTransformInterceptor } from './common/interceptors/response-transform.interceptor.js';
 import type { Env } from './config/env.schema.js';
@@ -24,10 +25,16 @@ export function configureApp(
 
   app.use(helmet());
 
+  // La importacion de canciones manda hasta 50 letras completas en un cuerpo;
+  // el limite por defecto de Express (100 KB) no alcanza.
+  app.useBodyParser('json', { limit: '2mb' });
+
   // Las consolas nativas no usan CORS; esto solo afecta a navegadores. Sin
   // `credentials`: el API no usa cookies, los tokens van en el header.
   app.enableCors({
     origin: config.get('CORS_ORIGIN', { infer: true }).split(','),
+    // Sin esto el navegador esconde el header y la web no puede citarlo.
+    exposedHeaders: [REQUEST_ID_HEADER],
   });
 
   // Sin ValidationPipe global: valida Zod, endpoint por endpoint.
