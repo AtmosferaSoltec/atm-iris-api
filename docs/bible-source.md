@@ -10,9 +10,21 @@
 | Descargado | 2026-10-05 |
 | Contenido | 66 libros · 1189 capítulos · 31 102 versículos (18 vacíos: en esta versificación vienen unidos al anterior, p. ej. Números 12:16) |
 
-No se usa la Reina-Valera 1960 ni ninguna otra traducción con derechos.
+## Otras traducciones
 
-## Cómo cargarla
+El script también carga `rvr1960`, `nvi` y `ntv` (catálogo en `src/modules/bible/bible.translations.ts`).
+**El repositorio no incluye ni descarga sus textos**: tienen derechos de autor (Sociedades Bíblicas Unidas,
+Biblica y Tyndale House, respectivamente), así que cada archivo VPL lo aporta quien despliega, con la licencia o
+autorización que corresponda. Hasta que se importe uno, esa traducción no existe en la base ni aparece en la API.
+
+```bash
+pnpm db:import-bible data/bible/rvr1960.txt --translation=rvr1960   # o nvi / ntv
+```
+
+Cada archivo debe traer los 66 libros en el mismo formato VPL (`GEN 1:1 texto`); si falta alguno, el script
+aborta sin cambiar nada.
+
+## Cómo cargar la RVR 1909
 
 El archivo no se versiona (`/data/bible` está en `.gitignore`):
 

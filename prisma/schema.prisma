@@ -378,7 +378,7 @@ model MediaAsset {
 // Contenido global, sin `church_id`: el mismo texto para todas las iglesias.
 // Lo carga `pnpm db:import-bible` (scripts/import-bible.ts).
 
-/// Una traduccion. En la v1 solo la Reina-Valera 1909 (dominio publico).
+/// Una traduccion, por codigo: rvr1909 y las que se importen (docs/bible-source.md).
 model BibleTranslation {
   /// "rvr1909".
   code      String @id @db.VarChar(20)
