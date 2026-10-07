@@ -268,10 +268,9 @@ model Song {
   churchId    String    @map("church_id")
   title       String    @db.VarChar(120)
   /// `nameKey(title)`. No es unico (dos versiones de la misma cancion son
-  /// validas); solo la importacion lo usa para saltar repetidas.
+  /// validas); sirve para ordenar y buscar por titulo.
   titleKey    String    @map("title_key") @db.VarChar(120)
   author      String    @default("") @db.VarChar(120)
-  copyright   String?   @db.VarChar(200)
   /// `searchText(title, author, ...secciones)`: lo recalcula el servicio en cada
   /// escritura. La busqueda usa ILIKE y trigramas (pg_trgm) sobre esta columna.
   searchText  String    @map("search_text")
@@ -294,7 +293,7 @@ model SongSection {
   id       String  @id @default(uuid(7))
   songId   String  @map("song_id")
   position Int     @db.SmallInt
-  /// "Coro", "Estrofa 1"... Opcional.
+  /// "Coro", "Estrofa 1"... Opcional: en la letra se escribe como `#Coro`.
   label    String? @db.VarChar(40)
   text     String  @db.VarChar(2000)
 

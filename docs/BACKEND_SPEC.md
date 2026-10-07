@@ -26,7 +26,7 @@
 | 01 | Crear cuenta, login, refresh con rotación, cerrar sesión, recuperar contraseña, correos | ✅ |
 | 02 | Perfil, contraseña y dispositivos (sin roles ni equipo) | ✅ |
 | 03 | Ajustes y módulos de la iglesia, personas, tipos de servicio | ✅ |
-| 04 | Canciones: CRUD, búsqueda sin acentos, importación | ✅ |
+| 04 | Canciones: CRUD, búsqueda sin acentos | ✅ |
 | 05 | Multimedia en S3 compatible con URLs firmadas y cuota | ✅ |
 | 06 | Biblia RVR1909 completa, descarga para usar sin conexión | ✅ |
 | 07 | Registros de tiempos | ✅ |
@@ -64,7 +64,7 @@ ServiceType     { id, churchId, name, color, schedule?, blocks: [BlockTemplate] 
   Schedule = { weekday (1 = dom … 7 = sáb), hour (0–23), minute (0–59) }   // hora local de la iglesia
   Paleta   = #FFB547 · #FF7A59 · #F0508C · #9B5CFF · #4E5BFF · #3DDC97
 BlockTemplate   { id, name, plannedMinutes (1–240), defaultPersonId? }    // orden = posición en la lista
-Song            { id, churchId, title, author, copyright?, sections: [SongSection] }
+Song            { id, churchId, title, author, sections: [SongSection] }
 SongSection     { id, label?, text }                                       // una sección = una pantalla del TV
 MediaAsset      { id, churchId, kind: image|video|audio, title, description?, fileName, contentType,
                   sizeBytes, durationSeconds?, width?, height?, isBackground }
@@ -77,7 +77,7 @@ Bible           { translation (rvr1909), books (USFM), verses }            // gl
 ### 2.3 Reglas de negocio que valida el servidor
 
 - **Nombres sin duplicados** por iglesia, comparados por *nameKey* (sin acentos, minúsculas, espacios colapsados):
-  personas y tipos de servicio. Los títulos de canciones no son únicos; solo la importación salta los repetidos.
+  personas y tipos de servicio. Los títulos de canciones no son únicos.
 - **Borrado suave** en personas, tipos de servicio, canciones, medios y registros: no aparecen en las listas, responden
   404 y la sincronización los informa como borrados.
 - **Idempotencia**: las creaciones con `id` del cliente (`POST /people`, `/service-types`, `/songs`,

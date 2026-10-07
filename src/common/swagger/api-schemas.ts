@@ -9,16 +9,29 @@ import { ApiResponse, type OpenAPIObject } from '@nestjs/swagger';
  * contrato cambia, cambia aqui.
  */
 // Los tipos de OpenAPI no se exportan por la raiz del paquete: se derivan.
-type Schema = NonNullable<NonNullable<OpenAPIObject['components']>['schemas']>[string];
+type Schema = NonNullable<
+  NonNullable<OpenAPIObject['components']>['schemas']
+>[string];
 type ReferenceObject = Extract<Schema, { $ref: string }>;
 type SchemaObject = Exclude<Schema, ReferenceObject>;
 
-const ref = (name: string): ReferenceObject => ({ $ref: `#/components/schemas/${name}` });
-const str = (extra: SchemaObject = {}): SchemaObject => ({ type: 'string', ...extra });
-const nullable = (schema: SchemaObject): SchemaObject => ({ ...schema, nullable: true });
+const ref = (name: string): ReferenceObject => ({
+  $ref: `#/components/schemas/${name}`,
+});
+const str = (extra: SchemaObject = {}): SchemaObject => ({
+  type: 'string',
+  ...extra,
+});
+const nullable = (schema: SchemaObject): SchemaObject => ({
+  ...schema,
+  nullable: true,
+});
 const date = str({ format: 'date-time', example: '2026-10-05T15:30:31.022Z' });
 const uuid = str({ format: 'uuid' });
-const int = (extra: SchemaObject = {}): SchemaObject => ({ type: 'integer', ...extra });
+const int = (extra: SchemaObject = {}): SchemaObject => ({
+  type: 'integer',
+  ...extra,
+});
 const bool: SchemaObject = { type: 'boolean' };
 const array = (items: Schema): SchemaObject => ({ type: 'array', items });
 
@@ -28,7 +41,11 @@ function object(properties: Record<string, Schema>): SchemaObject {
 
 const sessionView = object({
   user: object({ id: uuid, email: str({ format: 'email' }), fullName: str() }),
-  church: object({ id: uuid, name: str(), timezone: str({ example: 'America/Lima' }) }),
+  church: object({
+    id: uuid,
+    name: str(),
+    timezone: str({ example: 'America/Lima' }),
+  }),
   session: object({
     id: uuid,
     platform: str({ enum: ['web', 'ios', 'windows'] }),
@@ -63,7 +80,9 @@ const person = object({
 const serviceType = object({
   id: uuid,
   name: str(),
-  color: str({ enum: ['#FFB547', '#FF7A59', '#F0508C', '#9B5CFF', '#4E5BFF', '#3DDC97'] }),
+  color: str({
+    enum: ['#FFB547', '#FF7A59', '#F0508C', '#9B5CFF', '#4E5BFF', '#3DDC97'],
+  }),
   schedule: { ...schedule, nullable: true },
   blocks: array(
     object({
@@ -81,7 +100,6 @@ const song = object({
   id: uuid,
   title: str(),
   author: str(),
-  copyright: nullable(str()),
   sections: array(object({ id: uuid, label: nullable(str()), text: str() })),
   createdAt: date,
   updatedAt: date,
@@ -159,7 +177,12 @@ export const API_SCHEMAS: Record<string, SchemaObject> = {
   },
   Message: object({ message: str() }),
   ResetCodeValid: object({ valid: { type: 'boolean', enum: [true] } }),
-  PaginationMeta: object({ page: int(), limit: int(), total: int(), totalPages: int() }),
+  PaginationMeta: object({
+    page: int(),
+    limit: int(),
+    total: int(),
+    totalPages: int(),
+  }),
   SessionView: sessionView,
   AuthResult: {
     allOf: [
@@ -186,14 +209,14 @@ export const API_SCHEMAS: Record<string, SchemaObject> = {
   ServiceType: serviceType,
   Song: song,
   SongSummary: songSummary,
-  SongImportResult: object({
-    created: array(ref('SongSummary')),
-    skipped: array(object({ title: str(), reason: str({ enum: ['duplicate'] }) })),
-  }),
   UploadTicket: object({
     uploadId: uuid,
     uploadUrl: str({ format: 'uri' }),
-    headers: { type: 'object', additionalProperties: str(), example: { 'Content-Type': 'image/png' } },
+    headers: {
+      type: 'object',
+      additionalProperties: str(),
+      example: { 'Content-Type': 'image/png' },
+    },
     expiresAt: date,
   }),
   MediaAsset: mediaAsset,
@@ -236,16 +259,16 @@ export const API_SCHEMAS: Record<string, SchemaObject> = {
     name: str(),
     version: int(),
     books: array({
-      allOf: [
-        ref('BibleBook'),
-        object({ chapters: array(array(str())) }),
-      ],
+      allOf: [ref('BibleBook'), object({ chapters: array(array(str())) })],
     }),
   }),
 };
 
 /** `{ data: T }` o `{ data: T[] }` con el codigo de exito indicado. */
-export function ApiData(name: string, options: { status?: number; isArray?: boolean } = {}) {
+export function ApiData(
+  name: string,
+  options: { status?: number; isArray?: boolean } = {},
+) {
   const item = ref(name);
   return ApiResponse({
     status: options.status ?? 200,

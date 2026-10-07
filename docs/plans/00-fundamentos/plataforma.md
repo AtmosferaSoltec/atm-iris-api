@@ -27,7 +27,7 @@ El diseño, los textos y las reglas de pantalla están en `IRIS_SPEC.md` (en `at
 | Varias iglesias por usuario, cambio de iglesia | Planificar el orden del servicio con anticipación (la lista de la consola **empieza vacía**, regla del producto) |
 | Equipo: invitar por correo con roles `owner`, `admin`, `operator` | Tiempo real entre dispositivos (websockets): se sincroniza por intervalos |
 | Módulos, personas, tipos de servicio con bloques | Varias traducciones de la Biblia (el modelo lo admite; solo se carga RVR1909) |
-| Biblioteca de canciones con búsqueda e importación `.txt` | Edición de imágenes o recorte de video |
+| Biblioteca de canciones con búsqueda | Edición de imágenes o recorte de video |
 | Multimedia: imágenes, videos y música en almacenamiento S3 compatible, con fondos personalizados | Auditoría de cambios con pantalla propia |
 | Biblia RVR1909 completa, sin conexión en las consolas | Despliegue a producción (todo queda **en local** por ahora) |
 | Consolas **sin conexión**: copia local + sincronización + cola de escrituras | App de iPhone o Android |

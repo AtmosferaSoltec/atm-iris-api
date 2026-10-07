@@ -21,16 +21,14 @@ import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
 import {
   createSongSchema,
-  importSongsSchema,
   listSongsSchema,
   songInputSchema,
   type CreateSongInput,
-  type ImportSongsInput,
   type ListSongsQuery,
   type SongInput,
 } from './dto/songs.schema.js';
 import { SongsService } from './songs.service.js';
-import type { Song, SongImportResult, SongSummary } from './songs.types.js';
+import type { Song, SongSummary } from './songs.types.js';
 
 @ApiTags('songs')
 @ApiBearerAuth()
@@ -48,19 +46,6 @@ export class SongsController {
     @Query(new ZodValidationPipe(listSongsSchema)) query: ListSongsQuery,
   ): Promise<Paginated<SongSummary>> {
     return this.songs.list(user.churchId, query);
-  }
-
-  // Antes de `:id` para que "import" no se tome por un id.
-  @Post('import')
-  @ApiOperation({
-    summary: 'Importar hasta 50 canciones; salta los títulos que ya existen',
-  })
-  @ApiData('SongImportResult', { status: 201 })
-  import(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body(new ZodValidationPipe(importSongsSchema)) dto: ImportSongsInput,
-  ): Promise<SongImportResult> {
-    return this.songs.import(user.churchId, dto);
   }
 
   @Get(':id')

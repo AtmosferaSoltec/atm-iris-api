@@ -87,7 +87,10 @@ export class SongsRepository {
         SELECT count(*) AS total FROM songs WHERE ${where}`,
     ]);
 
-    return { ids: rows.map((row) => row.id), total: Number(counted[0]?.total ?? 0) };
+    return {
+      ids: rows.map((row) => row.id),
+      total: Number(counted[0]?.total ?? 0),
+    };
   }
 
   findSummariesByIds(churchId: string, ids: string[]) {
@@ -115,19 +118,6 @@ export class SongsRepository {
   /** Busca el id en cualquier iglesia (idempotencia vs `ID_CONFLICT`). */
   findAnyById(id: string, db: Db = this.prisma) {
     return db.song.findUnique({ where: { id }, include: WITH_SECTIONS });
-  }
-
-  /** Titulos (por nameKey) que ya existen entre las canciones no borradas. */
-  async findExistingTitleKeys(
-    churchId: string,
-    keys: string[],
-    db: Db = this.prisma,
-  ): Promise<Set<string>> {
-    const rows = await db.song.findMany({
-      where: { churchId, deletedAt: null, titleKey: { in: keys } },
-      select: { titleKey: true },
-    });
-    return new Set(rows.map((row) => row.titleKey));
   }
 
   create(
@@ -184,7 +174,6 @@ function columns(input: SongInput, keys: SongKeys) {
     title: input.title,
     titleKey: keys.titleKey,
     author: input.author,
-    copyright: input.copyright,
     searchText: keys.searchText,
   };
 }

@@ -7,7 +7,10 @@ import type { Song, SongSummary } from './songs.types.js';
 export type SongWithSections = SongRow & { sections: SongSectionRow[] };
 
 /** Lo minimo para armar un `SongSummary` sin cargar todas las secciones. */
-export type SongSummaryRow = Pick<SongRow, 'id' | 'title' | 'author' | 'updatedAt'> & {
+export type SongSummaryRow = Pick<
+  SongRow,
+  'id' | 'title' | 'author' | 'updatedAt'
+> & {
   sections: Pick<SongSectionRow, 'text'>[];
   _count: { sections: number };
 };
@@ -17,10 +20,13 @@ export function toSong(row: SongWithSections): Song {
     id: row.id,
     title: row.title,
     author: row.author,
-    copyright: row.copyright,
     sections: [...row.sections]
       .sort((a, b) => a.position - b.position)
-      .map((section) => ({ id: section.id, label: section.label, text: section.text })),
+      .map((section) => ({
+        id: section.id,
+        label: section.label,
+        text: section.text,
+      })),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

@@ -33,7 +33,6 @@ export const songInputSchema = z.object({
     .trim()
     .max(120, 'El autor tiene como máximo 120 caracteres.')
     .default(''),
-  copyright: optionalText(200, 'El copyright tiene como máximo 200 caracteres.'),
   sections: z
     .array(sectionSchema, 'Agrega al menos una sección.')
     .min(1, 'Agrega al menos una sección.')
@@ -44,13 +43,6 @@ export const createSongSchema = songInputSchema.extend({
   id: z.uuid('El id debe ser un UUID.').optional(),
 });
 
-export const importSongsSchema = z.object({
-  songs: z
-    .array(songInputSchema, 'Indica las canciones.')
-    .min(1, 'Importa al menos una canción.')
-    .max(50, 'Importa como máximo 50 canciones a la vez.'),
-});
-
 export const listSongsSchema = createPaginationSchema().extend({
   search: z.string().trim().max(200).optional(),
   sort: z.enum(['title', '-updatedAt'], 'Orden inválido.').optional(),
@@ -58,5 +50,4 @@ export const listSongsSchema = createPaginationSchema().extend({
 
 export type SongInput = z.infer<typeof songInputSchema>;
 export type CreateSongInput = z.infer<typeof createSongSchema>;
-export type ImportSongsInput = z.infer<typeof importSongsSchema>;
 export type ListSongsQuery = z.infer<typeof listSongsSchema>;

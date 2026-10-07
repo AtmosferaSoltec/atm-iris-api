@@ -286,19 +286,17 @@ type ServiceType = {
 | POST | `/songs` | `SongInput & { id? }` | 201 `Song` | Sesión |
 | PUT | `/songs/:id` | `SongInput` | `Song` (crea si no existe) | Sesión |
 | DELETE | `/songs/:id` | — | 204 | Sesión |
-| POST | `/songs/import` | `{ songs: SongInput[] }` (1–50) | 201 `{ created: SongSummary[]; skipped: { title: string; reason: "duplicate" }[] }` | Sesión |
 
 ```ts
-type SongSectionInput = { label: string | null; text: string };   // label ≤ 40, text 1–2000
+type SongSectionInput = { label: string | null; text: string };   // label ≤ 40 (opcional; la web lo escribe como `#Coro` en la letra), text 1–2000
 type SongInput = {
   title: string;                  // 1–120
   author: string;                 // 0–120 ("" si no hay)
-  copyright: string | null;       // ≤ 200
   sections: SongSectionInput[];   // 1–80, en orden
 };
 type SongSection = { id: string; label: string | null; text: string };
 type Song = {
-  id: string; title: string; author: string; copyright: string | null;
+  id: string; title: string; author: string;
   sections: SongSection[];
   createdAt: string; updatedAt: string;
 };
@@ -310,7 +308,7 @@ type SongSummary = {
 ```
 
 - `search` busca sin acentos ni mayúsculas en título, autor y texto de las secciones; ordena por relevancia cuando hay búsqueda. `limit` máximo 100. Sin `sort`, se ordena por título.
-- Los títulos **no** son únicos (dos iglesias pueden cantar dos versiones). Solo la importación salta los títulos que ya existen por *nameKey* (`skipped`).
+- Los títulos **no** son únicos (dos iglesias pueden cantar dos versiones). Dos canciones con el mismo título son dos letras distintas.
 - El texto llega ya dividido en secciones: el formato de texto plano (`[Coro]`, línea en blanco entre diapositivas) lo resuelve cada cliente. Regla de referencia: `atm-iris-web/src/lib/lyrics.ts`.
 
 ---

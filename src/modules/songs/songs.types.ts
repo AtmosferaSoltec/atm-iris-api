@@ -5,7 +5,6 @@ export type Song = {
   id: string;
   title: string;
   author: string;
-  copyright: string | null;
   sections: SongSection[];
   createdAt: string;
   updatedAt: string;
@@ -18,9 +17,4 @@ export type SongSummary = {
   sectionCount: number;
   firstLine: string | null;
   updatedAt: string;
-};
-
-export type SongImportResult = {
-  created: SongSummary[];
-  skipped: { title: string; reason: 'duplicate' }[];
 };

@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Contrato §10: biblioteca de letras de cada iglesia con búsqueda sin acentos, paginación e importación en lote.
+Contrato §10: biblioteca de letras de cada iglesia con búsqueda sin acentos y paginación. Las letras se escriben una a una; no hay importación en lote ni campo de derechos de autor.
 
 ## Dependencias
 
@@ -12,7 +12,7 @@ Fase 00 (`nameKey`, `searchText`, versión de sincronización, borrado suave, pa
 
 ```text
 songs          id, church_id, title VarChar(120), title_key VarChar(120), author VarChar(120) default '',
-               copyright VarChar(200)?, search_text Text, deleted_at?, sync_version, created_at, updated_at
+               search_text Text, deleted_at?, sync_version, created_at, updated_at
                índices: (church_id, title_key), (church_id, sync_version),
                GIN trigram sobre search_text (extensión pg_trgm en el esquema iris; es "trusted",
                la crea iris_app con CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA iris)
@@ -33,16 +33,10 @@ Trigger de `sync_version` en `songs`. Actualiza `docs/database/schema.md`.
   - Devuelve `SongSummary` (`sectionCount`, `firstLine` = primera línea de la primera sección).
 - `GET /songs/:id` → `Song` con secciones ordenadas.
 - `POST` (con `id?`), `PUT /:id` (crea si no existe), `DELETE` (suave). Las secciones se reemplazan completas.
-- `POST /songs/import { songs }` (1–50): dentro de una transacción con `withChurchLock`, salta los títulos cuyo
-  `title_key` ya exista en la iglesia (o se repita dentro del mismo lote) y crea el resto. Respuesta
-  `{ created: SongSummary[], skipped: [{ title, reason: "duplicate" }] }`.
-- Límite de cuerpo: sube el de Express a **2 MB** en `main.ts`/`app.setup.ts` (`app.useBodyParser('json', { limit: '2mb' })`)
-  para que entren 50 letras.
 
 ## Criterios de aceptación
 
 - Buscar "sublime" encuentra "Sublime gracia"; "senor" encuentra "Señor" dentro de la letra.
-- Importar dos veces el mismo lote crea la primera vez y salta todo la segunda.
 - Compila, lint, build.
 
 ## Desviaciones
@@ -52,7 +46,9 @@ Trigger de `sync_version` en `songs`. Actualiza `docs/database/schema.md`.
 | Búsqueda por parecido con `word_similarity(q, search_text) > 0.6` en lugar de `similarity(search_text, q) > 0.2` | `similarity` compara la consulta con la letra completa y da puntajes casi nulos: "castilo" no encontraba "Castillo fuerte". `word_similarity` la compara con el tramo más parecido |
 | Orden con búsqueda: primero las que coinciden en el título (`title_key ILIKE`), luego por parecido y por título | "Ordena por relevancia" del contrato: quien busca "sublime" espera "Sublime gracia" antes que una letra que diga "sublime" |
 | Con `search`, el parámetro `sort` se ignora | El contrato pide relevancia cuando hay búsqueda |
-| `author` ausente se toma como `""`; `copyright` y `label` vacíos se guardan como `null`; textos recortados en los extremos | Interpretación conservadora de "`""` si no hay" (§10) y de los `null` explícitos |
+| `author` ausente se toma como `""`; `label` vacío se guardan como `null`; textos recortados en los extremos | Interpretación conservadora de "`""` si no hay" (§10) y de los `null` explícitos |
 | La extensión `pg_trgm` y el índice GIN se declaran así: la extensión en el SQL de la migración (`CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA iris`), el índice en el schema (`@@index(..., type: Gin)`) | Sin la preview `postgresqlExtensions`, Prisma ignora las extensiones; el índice declarado en el schema evita deriva |
 | `POST /songs` con `id` existente en la iglesia → 200 tal cual; `PUT` crea (201) o reemplaza (200); `PUT` sobre una borrada → 404 | Mismas reglas que la fase 03 |
-| Verificado con `curl`: "sublime", "senor" (dentro de la letra), "castilo" (tipeo), importar dos veces (la segunda salta todo), duplicado dentro del lote, paginación y `meta`, importación de ~1 MB | — |
+| Verificado con `curl`: "sublime", "senor" (dentro de la letra), "castilo" (tipeo), paginación y `meta` | — |
+
+- **Importación y copyright (retirados el 2026-10-07)**: se quitaron `POST /songs/import` y la columna `copyright` (migración `20261007000000_songs_drop_copyright`). El límite de 2 MB del cuerpo JSON se conserva por seguridad.

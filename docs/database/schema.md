@@ -64,7 +64,6 @@ erDiagram
     varchar title
     varchar title_key
     varchar author
-    varchar copyright
     text search_text
     timestamptz deleted_at
     bigint sync_version
@@ -204,7 +203,7 @@ erDiagram
 
 | Tabla | Lo no obvio |
 |---|---|
-| `songs` | `title_key` = `nameKey(title)`: **no** es único (dos versiones de una canción son válidas); solo la importación lo usa para saltar repetidas. `search_text` = `searchText(title, author, …secciones)`, recalculado por el servicio en cada escritura. Índice GIN `gin_trgm_ops` sobre `search_text` (extensión `pg_trgm` en el esquema `iris`) |
+| `songs` | `title_key` = `nameKey(title)`: **no** es único (dos versiones de una canción son válidas); sirve para ordenar y buscar por título. `search_text` = `searchText(title, author, …secciones)`, recalculado por el servicio en cada escritura. Índice GIN `gin_trgm_ops` sobre `search_text` (extensión `pg_trgm` en el esquema `iris`) |
 | `song_sections` | Una sección = una pantalla del TV. Se reemplazan completas en cada escritura (ids nuevos). Único `(song_id, position)` |
 
 Búsqueda: `search_text ILIKE '%q%' OR word_similarity(q, search_text) > 0.6`, con `q` normalizada por `nameKey`;

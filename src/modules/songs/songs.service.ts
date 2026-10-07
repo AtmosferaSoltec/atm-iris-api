@@ -9,13 +9,12 @@ import { idConflict, notFound } from '../../common/exceptions/api-errors.js';
 import { nameKey, searchText } from '../../shared/utils/text.js';
 import type {
   CreateSongInput,
-  ImportSongsInput,
   ListSongsQuery,
   SongInput,
 } from './dto/songs.schema.js';
 import { toSong, toSongSummary } from './songs.mapper.js';
 import { SongsRepository, type SongKeys } from './songs.repository.js';
-import type { Song, SongImportResult, SongSummary } from './songs.types.js';
+import type { Song, SongSummary } from './songs.types.js';
 
 export type SavedSong = { song: Song; isNew: boolean };
 
@@ -40,7 +39,11 @@ export class SongsService {
 
     // Con busqueda manda la relevancia: se piden los ids ya ordenados y luego
     // se cargan los resumenes respetando ese orden.
-    const { ids, total } = await this.repository.searchIds(churchId, search, window);
+    const { ids, total } = await this.repository.searchIds(
+      churchId,
+      search,
+      window,
+    );
     const rows = await this.repository.findSummariesByIds(churchId, ids);
     const byId = new Map(rows.map((row) => [row.id, row]));
     const ordered = ids.flatMap((id) => {
@@ -68,7 +71,13 @@ export class SongsService {
         }
       }
 
-      const row = await this.repository.create(churchId, input.id, input, keysOf(input), tx);
+      const row = await this.repository.create(
+        churchId,
+        input.id,
+        input,
+        keysOf(input),
+        tx,
+      );
       return { song: toSong(row), isNew: true };
     });
   }
@@ -81,11 +90,23 @@ export class SongsService {
       if (existing?.deletedAt) throw songNotFound();
 
       if (!existing) {
-        const row = await this.repository.create(churchId, id, input, keysOf(input), tx);
+        const row = await this.repository.create(
+          churchId,
+          id,
+          input,
+          keysOf(input),
+          tx,
+        );
         return { song: toSong(row), isNew: true };
       }
 
-      const row = await this.repository.replace(churchId, id, input, keysOf(input), tx);
+      const row = await this.repository.replace(
+        churchId,
+        id,
+        input,
+        keysOf(input),
+        tx,
+      );
       return { song: toSong(row), isNew: false };
     });
   }
@@ -95,38 +116,6 @@ export class SongsService {
       const current = await this.repository.findActive(churchId, id, tx);
       if (!current) throw songNotFound();
       await this.repository.softDelete(churchId, id, tx);
-    });
-  }
-
-  /**
-   * Importacion en lote. Los titulos no son unicos, pero importar dos veces el
-   * mismo archivo no debe duplicar la biblioteca: se salta todo titulo que ya
-   * exista (por nameKey) en la iglesia o que se repita dentro del lote.
-   */
-  import(churchId: string, input: ImportSongsInput): Promise<SongImportResult> {
-    return this.repository.withLock(churchId, async (tx) => {
-      const keyed = input.songs.map((song) => ({ song, keys: keysOf(song) }));
-      const taken = await this.repository.findExistingTitleKeys(
-        churchId,
-        keyed.map(({ keys }) => keys.titleKey),
-        tx,
-      );
-
-      const result: SongImportResult = { created: [], skipped: [] };
-      for (const { song, keys } of keyed) {
-        if (taken.has(keys.titleKey)) {
-          result.skipped.push({ title: song.title, reason: 'duplicate' });
-          continue;
-        }
-        taken.add(keys.titleKey);
-
-        const row = await this.repository.create(churchId, undefined, song, keys, tx);
-        result.created.push(
-          toSongSummary({ ...row, _count: { sections: row.sections.length } }),
-        );
-      }
-
-      return result;
     });
   }
 }

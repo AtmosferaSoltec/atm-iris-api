@@ -35,7 +35,7 @@ Marca cada casilla al terminar la fase y completa su sección *Desviaciones*.
 | 01 | [Login y sesiones](01-login/README.md) | [x] ya hecha |
 | 02 | [Cuenta y equipo](02-cuenta-y-equipo/README.md): roles, cambio de iglesia, perfil, contraseña, dispositivos, invitaciones | [x] |
 | 03 | [Iglesia](03-iglesia/README.md): ajustes, módulos, personas, tipos de servicio | [x] |
-| 04 | [Canciones](04-canciones/README.md): CRUD, búsqueda, importación | [x] |
+| 04 | [Canciones](04-canciones/README.md): CRUD y búsqueda | [x] |
 | 05 | [Multimedia](05-multimedia/README.md): almacenamiento S3/MinIO, subidas firmadas, cuota | [x] |
 | 06 | [Biblia](06-biblia/README.md): importar RVR1909, consulta y descarga completa | [x] |
 | 07 | [Tiempos](07-tiempos/README.md): registros de servicio | [x] |
