@@ -13,6 +13,20 @@ export type ProjectionSettings = {
   defaultBackgroundId: string | null;
 };
 
+/** Contrato §6. Las tres partes de `breakdown` suman `usedBytes`. */
+export type StorageUsage = {
+  usedBytes: number;
+  quotaBytes: number;
+  breakdown: StorageBreakdown;
+};
+
+/** Musica = audios; fondos = imagenes o videos marcados como fondo; multimedia = el resto. */
+export type StorageBreakdown = {
+  musicBytes: number;
+  backgroundBytes: number;
+  mediaBytes: number;
+};
+
 export type Church = {
   id: string;
   name: string;
@@ -23,7 +37,7 @@ export type Church = {
   availableModules: ChurchModules;
   /** Como se ve la letra proyectada; igual para todas las consolas de la iglesia. */
   projection: ProjectionSettings;
-  storage: { usedBytes: number; quotaBytes: number };
+  storage: StorageUsage;
   createdAt: string;
   updatedAt: string;
 };

@@ -199,7 +199,7 @@ export class MediaService {
     query: ListMediaQuery,
   ): Promise<Paginated<MediaAsset>> {
     const filters = {
-      kind: query.kind ? toDbMediaKind(query.kind) : undefined,
+      kinds: query.kind?.map(toDbMediaKind),
       titleKey: query.search ? nameKey(query.search) : undefined,
       isBackground: query.isBackground,
     };

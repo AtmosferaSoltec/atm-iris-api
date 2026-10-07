@@ -70,7 +70,15 @@ const church = object({
     fontSizePt: int(),
     defaultBackgroundId: nullable(str()),
   }),
-  storage: object({ usedBytes: int(), quotaBytes: int() }),
+  storage: object({
+    usedBytes: int(),
+    quotaBytes: int(),
+    breakdown: object({
+      musicBytes: int(),
+      backgroundBytes: int(),
+      mediaBytes: int(),
+    }),
+  }),
   createdAt: date,
   updatedAt: date,
 });

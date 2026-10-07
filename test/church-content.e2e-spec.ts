@@ -28,7 +28,11 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
       // La Biblia esta apagada para todo Iris (system_features): la iglesia no la ve.
       modules: { bible: false, multimedia: true, timeControl: true },
       availableModules: { bible: false, multimedia: true, timeControl: true },
-      storage: { usedBytes: 0, quotaBytes: 5368709120 },
+      storage: {
+        usedBytes: 0,
+        quotaBytes: 5368709120,
+        breakdown: { musicBytes: 0, backgroundBytes: 0, mediaBytes: 0 },
+      },
     });
     expect(church.body.data.projection).toEqual({
       fontFamily: 'system',

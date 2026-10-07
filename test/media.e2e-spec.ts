@@ -72,10 +72,16 @@ describe.runIf(storageUp)('multimedia (e2e, requiere MinIO)', () => {
     expect(Buffer.from(await file.arrayBuffer()).equals(bytes)).toBe(true);
 
     const church = await api.get('/church');
-    expect(church.body.data.storage.usedBytes).toBe(bytes.length);
+    expect(church.body.data.storage).toMatchObject({
+      usedBytes: bytes.length,
+      breakdown: { musicBytes: 0, backgroundBytes: bytes.length, mediaBytes: 0 },
+    });
 
     const backgrounds = await api.get('/media?isBackground=true');
     expect(backgrounds.body.meta.total).toBe(1);
+    expect((await api.get('/media?kind=image,video')).body.meta.total).toBe(1);
+    expect((await api.get('/media?kind=audio')).body.meta.total).toBe(0);
+    expect((await api.get('/media?kind=image,gif')).status).toBe(400);
 
     await api.delete(`/media/${confirmed.body.data.id}`);
     expect((await api.get('/church')).body.data.storage.usedBytes).toBe(0);

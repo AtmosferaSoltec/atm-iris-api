@@ -27,7 +27,7 @@ export type ConfirmedMedia = {
 };
 
 export type MediaFilters = {
-  kind?: MediaKind;
+  kinds?: MediaKind[];
   titleKey?: string;
   isBackground?: boolean;
 };
@@ -200,7 +200,7 @@ export class MediaRepository {
     return {
       churchId,
       deletedAt: null,
-      ...(filters.kind ? { kind: filters.kind } : {}),
+      ...(filters.kinds ? { kind: { in: filters.kinds } } : {}),
       ...(filters.isBackground !== undefined ? { isBackground: filters.isBackground } : {}),
       ...(filters.titleKey ? { titleKey: { contains: filters.titleKey } } : {}),
     };

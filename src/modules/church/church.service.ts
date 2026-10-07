@@ -19,9 +19,9 @@ export class ChurchService {
   ) {}
 
   async get(churchId: string): Promise<Church> {
-    const [church, usedBytes, available] = await Promise.all([
+    const [church, usage, available] = await Promise.all([
       this.repository.findChurch(churchId),
-      this.repository.usedStorageBytes(churchId),
+      this.repository.storageBreakdown(churchId),
       this.features.availableModules(),
     ]);
     if (!church) {
@@ -30,7 +30,7 @@ export class ChurchService {
         message: 'No encontramos la iglesia.',
       });
     }
-    return toChurch(church, usedBytes, available);
+    return toChurch(church, usage, available);
   }
 
   async update(churchId: string, input: UpdateChurchInput): Promise<Church> {

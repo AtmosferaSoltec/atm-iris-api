@@ -214,13 +214,25 @@ type Church = {
   modules: ChurchModules;           // lo que la iglesia ve encendido (su elección y lo disponible en Iris)
   availableModules: ChurchModules;  // módulos que existen hoy en Iris; lo que está en false no se ofrece
   projection: ProjectionSettings;   // cómo se ve la letra proyectada; igual en todas las consolas
-  storage: { usedBytes: number; quotaBytes: number };
+  storage: StorageUsage;
   createdAt: string; updatedAt: string;
+};
+type StorageUsage = {
+  usedBytes: number;                // suma de breakdown
+  quotaBytes: number;
+  breakdown: {
+    musicBytes: number;             // audios (sección Música)
+    backgroundBytes: number;        // imágenes y videos con isBackground (sección Fondos)
+    mediaBytes: number;             // el resto de imágenes y videos (sección Multimedia)
+  };
 };
 ```
 
 - `name` 1–120. `timezone` debe ser una zona IANA válida.
 - Iglesia nueva: los tres módulos en `true`, cuota de **5 GiB** (`5368709120`).
+- **Almacenamiento** (`storage`): la cuota es una sola por iglesia y la comparten música, fondos y multimedia.
+  `breakdown` dice cuánto ocupa cada sección (solo medios no borrados; las subidas en curso no cuentan aquí).
+  En `/sync` la iglesia solo viaja cuando cambia, así que una consola que muestre el uso lo pide a `GET /church`.
 - **Letra proyectada** (`projection`): tipografía, tamaño y fondo por defecto, iguales en todas las consolas de la
   iglesia. `fontFamily` es una clave, no un nombre de fuente: cada cliente la traduce a la fuente real de su
   plataforma (10 claves — ver `src/modules/church/projection-fonts.ts` en la API para la traducción sugerida por
@@ -343,7 +355,7 @@ La subida va **directo al almacenamiento** (S3 compatible: Cloudflare R2 en prod
 |---|---|---|---|---|
 | POST | `/media/uploads` | `{ kind, fileName, contentType, sizeBytes }` | 201 `UploadTicket` | Sesión |
 | POST | `/media` | `{ uploadId, title, description?, durationSeconds?, width?, height?, isBackground? }` | 201 `MediaAsset` | Sesión |
-| GET | `/media` | `?kind=&search=&isBackground=&page=&limit=` | paginado `MediaAsset[]` (más reciente primero) | Sesión |
+| GET | `/media` | `?kind=&search=&isBackground=&page=&limit=` (`kind` acepta varios separados por coma: `image,video`) | paginado `MediaAsset[]` (más reciente primero) | Sesión |
 | GET | `/media/:id` | — | `MediaAsset` | Sesión |
 | GET | `/media/:id/download-url` | — | `{ url, expiresAt }` (GET firmado, 1 h) | Sesión |
 | PATCH | `/media/:id` | `{ title?, description?, isBackground? }` | `MediaAsset` | Sesión |
@@ -390,6 +402,19 @@ Flujo:
 2. El cliente hace `PUT uploadUrl` con los `headers` y los bytes.
 3. `POST /media` confirma: la API comprueba que el objeto existe y que su tamaño coincide (`UPLOAD_NOT_FOUND` si no) y crea el `MediaAsset`. Los metadatos (`durationSeconds`, `width`, `height`) los mide el cliente que sube.
 4. Las consolas descargan con `GET /media/:id/download-url` y guardan el archivo en caché por `id` + `updatedAt`.
+
+**Secciones de la web**: **Música** (`kind=audio`, el repertorio de pistas que suenan en el salón), **Fondos**
+(`isBackground=true`) y **Multimedia** (`kind=image,video&isBackground=false`, material para una ocasión). Las tres
+son el mismo `MediaAsset` y comparten la cuota. Las letras (§10) son otra cosa y no ocupan almacenamiento.
+
+**Qué descarga una consola y cuándo** (los archivos no viven en una carpeta del equipo: salen de aquí):
+- **Imágenes y fondos** (también los videos de fondo): todos, apenas llegan por `/sync`. Son livianos y se
+  necesitan al instante.
+- **Música y videos**: solo los que se usan. La descarga empieza al agregarlos al servicio en la consola (o al
+  reproducirlos, si todavía no estaban), y el archivo se queda en el equipo para la próxima vez.
+- Lo borrado (`deleted.media` en `/sync`, o un `updatedAt` nuevo) se elimina del equipo en la siguiente
+  sincronización. El archivo sigue en el almacenamiento 24 h después del borrado, así una consola atrasada no se
+  queda a medias.
 
 Las subidas sin confirmar vencen a la hora y se limpian solas.
 

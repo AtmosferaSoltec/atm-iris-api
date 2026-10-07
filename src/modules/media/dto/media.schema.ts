@@ -81,8 +81,19 @@ export const updateMediaSchema = z
     { message: 'No hay nada que cambiar.' },
   );
 
+/** `kind=image` o varios separados por coma: `kind=image,video`. */
+const kindList = z
+  .string()
+  .transform((value) =>
+    value
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean),
+  )
+  .pipe(z.array(kind).min(1, 'El tipo debe ser image, video o audio.'));
+
 export const listMediaSchema = createPaginationSchema().extend({
-  kind: kind.optional(),
+  kind: kindList.optional(),
   search: z.string().trim().max(120).optional(),
   isBackground: z.stringbool({ error: 'isBackground debe ser true o false.' }).optional(),
 });

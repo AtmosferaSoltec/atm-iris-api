@@ -65,7 +65,7 @@ describe('SystemFeaturesService', () => {
 
 describe('toChurch con interruptores del sistema', () => {
   it('lo apagado para todo Iris queda apagado aunque la iglesia lo tenga encendido', () => {
-    const church = toChurch(churchRow as never, 0n, {
+    const church = toChurch(churchRow as never, undefined, {
       bible: false,
       multimedia: true,
       timeControl: true,
@@ -83,7 +83,7 @@ describe('toChurch con interruptores del sistema', () => {
   });
 
   it('con todo disponible se respeta la eleccion de la iglesia', () => {
-    const church = toChurch(churchRow as never, 0n);
+    const church = toChurch(churchRow as never);
     expect(church.modules).toEqual({
       bible: true,
       multimedia: true,
