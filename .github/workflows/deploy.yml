@@ -3,6 +3,8 @@ name: Deploy
 on:
   push:
     branches: [production]
+  # Permite relanzar un despliegue sin empujar un commit vacio.
+  workflow_dispatch:
 
 concurrency:
   group: deploy-iris-api
