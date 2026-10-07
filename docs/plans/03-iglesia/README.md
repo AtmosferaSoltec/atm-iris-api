@@ -24,7 +24,7 @@ service_types   id, church_id, name VarChar(60), name_key, color Char(7),
                 único parcial (church_id, name_key) WHERE deleted_at IS NULL
                 CHECK: los tres campos de horario son todos null o todos no null
 block_templates id, service_type_id (cascade), position SmallInt, name VarChar(60),
-                planned_minutes SmallInt (CHECK 1–240), default_person_id? (FK people, SET NULL)
+                planned_minutes SmallInt (CHECK 1–240)
                 único (service_type_id, position) DEFERRABLE
 ```
 
@@ -45,14 +45,13 @@ Módulos `src/modules/church/`, `src/modules/people/`, `src/modules/service-type
   `blockCount` = bloques de registros no borrados con ese `person_id` y estado distinto de `skipped`
   (la tabla llega en la fase 07: hasta entonces `0`, dejando la consulta lista para completarse).
 - `POST { id?, name }`: idempotente por `id` (contrato §2). `PERSON_NAME_TAKEN` por `nameKey`.
-- `PATCH { name }`, `DELETE`: el borrado pone `deleted_at`, deja en `null` los `default_person_id` que apunten a ella
+- `PATCH { name }`, `DELETE`: el borrado pone `deleted_at`, no toca las plantillas
   y **toca** (`updated_at`) esos tipos de servicio para que suban de versión. Todo dentro de `withChurchLock`.
 
 ### `/service-types`
 - `GET` (por `name`) y `GET /:id`. Respuesta con `blocks` ordenados por `position` y `schedule` armado o `null`.
 - `POST` (con `id?`) y `PUT /:id` (crea si no existe): reemplazo completo de los bloques en una transacción:
   conserva los `id` que vienen, crea los nuevos, borra los que faltan, reescribe `position` según el orden.
-  Valida `defaultPersonId` contra personas no borradas de la iglesia (`errors["blocks.N.defaultPersonId"]`).
   `SERVICE_TYPE_NAME_TAKEN` por `nameKey`.
 - `DELETE`: borrado suave.
 
@@ -82,3 +81,5 @@ Módulos `src/modules/church/`, `src/modules/people/`, `src/modules/service-type
 | Los nombres se guardan recortados pero sin colapsar espacios internos (`" jose  perez "` → `"jose  perez"`); la unicidad compara por `nameKey` | El contrato solo define `nameKey` para comparar; el nombre visible se respeta |
 | `storage.usedBytes` devuelve 0 y `blockCount` 0 hasta que existan sus tablas (fases 05 y 07), desde métodos del repositorio que esas fases completan | Lo indica el plan |
 | Verificado con `curl` (25 comprobaciones): forma de `Church`, zona inválida, módulos, `PERSON_NAME_TAKEN` y reuso del nombre tras borrar, idempotencia e `ID_CONFLICT`, 404 entre iglesias, reemplazo de bloques (ids conservados, reorden), borrar responsable sugerido limpia el bloque y sube la versión | — |
+
+- **Responsable por bloque (retirado el 2026-10-07)**: las plantillas ya no llevan `defaultPersonId` (migración `20261007010000_block_templates_drop_default_person`): el responsable rota cada semana y se registra en cada servicio.

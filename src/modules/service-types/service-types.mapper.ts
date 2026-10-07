@@ -31,7 +31,6 @@ export function toServiceType(row: ServiceTypeWithBlocks): ServiceType {
         id: block.id,
         name: block.name,
         plannedMinutes: block.plannedMinutes,
-        defaultPersonId: block.defaultPersonId,
       })),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

@@ -4,7 +4,6 @@ import { API_ERROR_CODES } from '../../common/constants/error-codes.js';
 import {
   idConflict,
   notFound,
-  validationFailed,
 } from '../../common/exceptions/api-errors.js';
 import type { Tx } from '../../database/church-write-lock.js';
 import { byName, nameKey } from '../../shared/utils/text.js';
@@ -118,18 +117,6 @@ export class ServiceTypesService {
     );
     const conflictIndex = input.blocks.findIndex((b) => b.id && foreign.has(b.id));
     if (conflictIndex >= 0) throw idConflict(`blocks.${conflictIndex}.id`);
-
-    const personIds = [
-      ...new Set(input.blocks.flatMap((b) => (b.defaultPersonId ? [b.defaultPersonId] : []))),
-    ];
-    const known = await this.repository.findActivePersonIds(churchId, personIds, tx);
-    const errors: Record<string, string> = {};
-    input.blocks.forEach((block, index) => {
-      if (block.defaultPersonId && !known.has(block.defaultPersonId)) {
-        errors[`blocks.${index}.defaultPersonId`] = 'Esa persona no existe.';
-      }
-    });
-    if (Object.keys(errors).length > 0) throw validationFailed(errors);
 
     return key;
   }

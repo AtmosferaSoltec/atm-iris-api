@@ -89,7 +89,6 @@ const serviceType = object({
       id: uuid,
       name: str(),
       plannedMinutes: int({ minimum: 1, maximum: 240 }),
-      defaultPersonId: nullable(uuid),
     }),
   ),
   createdAt: date,

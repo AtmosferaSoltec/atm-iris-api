@@ -86,20 +86,6 @@ export class ServiceTypesRepository {
     return count > 0;
   }
 
-  /** Ids de personas no borradas de la iglesia, entre los indicados. */
-  async findActivePersonIds(
-    churchId: string,
-    ids: string[],
-    db: Db = this.prisma,
-  ): Promise<Set<string>> {
-    if (ids.length === 0) return new Set();
-    const rows = await db.person.findMany({
-      where: { churchId, id: { in: ids }, deletedAt: null },
-      select: { id: true },
-    });
-    return new Set(rows.map((row) => row.id));
-  }
-
   async create(
     churchId: string,
     id: string | undefined,
@@ -171,7 +157,6 @@ export class ServiceTypesRepository {
         position,
         name: block.name,
         plannedMinutes: block.plannedMinutes,
-        defaultPersonId: block.defaultPersonId,
       };
 
       if (block.id && existing.has(block.id)) {

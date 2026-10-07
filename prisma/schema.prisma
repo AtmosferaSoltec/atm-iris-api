@@ -205,8 +205,7 @@ model Person {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  church         Church          @relation(fields: [churchId], references: [id], onDelete: Cascade)
-  blockTemplates BlockTemplate[]
+  church Church @relation(fields: [churchId], references: [id], onDelete: Cascade)
 
   /// Unico entre las no borradas: se puede volver a crear el nombre de una borrada.
   @@unique([churchId, nameKey], where: raw("deleted_at IS NULL"))
@@ -252,11 +251,8 @@ model BlockTemplate {
   name            String  @db.VarChar(60)
   /// 1-240 (CHECK en la migracion).
   plannedMinutes  Int     @map("planned_minutes") @db.SmallInt
-  /// Responsable sugerido. Borrar la persona lo deja en null.
-  defaultPersonId String? @map("default_person_id")
 
   serviceType   ServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
-  defaultPerson Person?     @relation(fields: [defaultPersonId], references: [id], onDelete: SetNull)
 
   @@unique([serviceTypeId, position])
   @@map("block_templates")

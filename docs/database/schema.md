@@ -153,7 +153,6 @@ erDiagram
     smallint position
     varchar name
     smallint planned_minutes
-    text default_person_id FK
   }
   users {
     text id PK
@@ -195,9 +194,9 @@ erDiagram
 | Tabla | Lo no obvio |
 |---|---|
 | `churches` (módulos) | `bible_enabled`, `multimedia_enabled`, `time_control_enabled` (Letras siempre está activo, sin columna) y `storage_quota_bytes` (5 GiB por defecto) |
-| `people` | Quien dirige un bloque; no es un usuario. `name_key` = `nameKey(name)` (contrato §2), único **parcial** por iglesia entre las no borradas. Borrar una persona deja en `null` los `default_person_id` de las plantillas y toca esos tipos de servicio para que suban de versión |
+| `people` | Quien dirige un bloque en cada servicio (se registra en `block_records`); no es un usuario. `name_key` = `nameKey(name)` (contrato §2), único **parcial** por iglesia entre las no borradas. Borrar una persona no toca las plantillas |
 | `service_types` | Horario en hora local de la iglesia (`weekday` 1 = domingo). `CHECK`: los tres campos del horario son todos `null` o todos válidos. `color` es uno de los seis de la paleta. `name_key` único parcial |
-| `block_templates` | Sin `sync_version` propia: cada escritura reemplaza la lista y actualiza el padre. Único `(service_type_id, position)` **diferible** (`DEFERRABLE INITIALLY DEFERRED`) para poder reordenar dentro de una transacción. `CHECK planned_minutes BETWEEN 1 AND 240`. `default_person_id` con `ON DELETE SET NULL` |
+| `block_templates` | Sin `sync_version` propia: cada escritura reemplaza la lista y actualiza el padre. Único `(service_type_id, position)` **diferible** (`DEFERRABLE INITIALLY DEFERRED`) para poder reordenar dentro de una transacción. `CHECK planned_minutes BETWEEN 1 AND 240`. |
 
 ## Canciones (fase 04)
 

@@ -68,15 +68,13 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
 
   it('tipos de servicio: bloques, reemplazo y responsable borrado', async () => {
     const api = authed(app, (await signUp(app)).accessToken);
-    const carlos = (await api.post('/people', { name: 'Carlos Pérez' })).body.data;
-
     const created = await api.post('/service-types', {
       name: 'Culto general',
       color: '#FFB547',
       schedule: { weekday: 1, hour: 10, minute: 0 },
       blocks: [
-        { name: 'Bienvenida', plannedMinutes: 10, defaultPersonId: carlos.id },
-        { name: 'Prédica', plannedMinutes: 40, defaultPersonId: null },
+        { name: 'Bienvenida', plannedMinutes: 10 },
+        { name: 'Prédica', plannedMinutes: 40 },
       ],
     });
     expect(created.status).toBe(201);
@@ -95,9 +93,9 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
       color: '#4E5BFF',
       schedule: null,
       blocks: [
-        { id: sermon.id, name: 'Prédica', plannedMinutes: 45, defaultPersonId: null },
-        { id: welcome.id, name: 'Bienvenida', plannedMinutes: 10, defaultPersonId: carlos.id },
-        { name: 'Anuncios', plannedMinutes: 5, defaultPersonId: null },
+        { id: sermon.id, name: 'Prédica', plannedMinutes: 45 },
+        { id: welcome.id, name: 'Bienvenida', plannedMinutes: 10 },
+        { name: 'Anuncios', plannedMinutes: 5 },
       ],
     });
     expect(replaced.status).toBe(200);
@@ -107,10 +105,7 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
     ]);
     expect(replaced.body.data.schedule).toBeNull();
 
-    await api.delete(`/people/${carlos.id}`);
-    const after = await api.get(`/service-types/${created.body.data.id}`);
-    expect(after.body.data.blocks[1].defaultPersonId).toBeNull();
-    expect(after.body.data.updatedAt > replaced.body.data.updatedAt).toBe(true);
+    expect(replaced.body.data.blocks[0]).not.toHaveProperty('defaultPersonId');
 
     const id = randomUUID();
     const upsert = await api.put(`/service-types/${id}`, {

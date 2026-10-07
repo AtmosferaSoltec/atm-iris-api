@@ -236,7 +236,7 @@ type Person = {
 ```
 
 - `name` 1–80. Único por *nameKey* entre las personas no borradas → `PERSON_NAME_TAKEN`.
-- Borrar una persona quita su `defaultPersonId` de las plantillas (sube la versión de esos tipos de servicio). Los registros conservan `personId` y `personName`.
+- Borrar una persona no cambia las plantillas (no llevan responsable). Los registros conservan `personId` y `personName`.
 
 ---
 
@@ -260,10 +260,9 @@ type ServiceTypeInput = {
 };
 type BlockTemplateInput = {
   id?: string; name: string;      // 1–60
-  plannedMinutes: number;         // entero 1–240
-  defaultPersonId: string | null; // persona no borrada de esta iglesia
+  plannedMinutes: number;         // entero 1–240 (sin responsable: se registra en cada servicio)
 };
-type BlockTemplate = { id: string; name: string; plannedMinutes: number; defaultPersonId: string | null };
+type BlockTemplate = { id: string; name: string; plannedMinutes: number };
 type ServiceType = {
   id: string; name: string; color: string; schedule: Schedule | null;
   blocks: BlockTemplate[];        // ya ordenados

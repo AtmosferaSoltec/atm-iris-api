@@ -260,7 +260,6 @@ async function seedContent(churchId: string): Promise<void> {
                   position,
                   name: block.name,
                   plannedMinutes: block.minutes,
-                  defaultPersonId: people.get(block.person) ?? null,
                 })),
               },
             },

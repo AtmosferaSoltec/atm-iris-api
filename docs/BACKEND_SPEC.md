@@ -63,7 +63,7 @@ Person          { id, churchId, name }
 ServiceType     { id, churchId, name, color, schedule?, blocks: [BlockTemplate] }
   Schedule = { weekday (1 = dom … 7 = sáb), hour (0–23), minute (0–59) }   // hora local de la iglesia
   Paleta   = #FFB547 · #FF7A59 · #F0508C · #9B5CFF · #4E5BFF · #3DDC97
-BlockTemplate   { id, name, plannedMinutes (1–240), defaultPersonId? }    // orden = posición en la lista
+BlockTemplate   { id, name, plannedMinutes (1–240) }    // orden = posición en la lista
 Song            { id, churchId, title, author, sections: [SongSection] }
 SongSection     { id, label?, text }                                       // una sección = una pantalla del TV
 MediaAsset      { id, churchId, kind: image|video|audio, title, description?, fileName, contentType,

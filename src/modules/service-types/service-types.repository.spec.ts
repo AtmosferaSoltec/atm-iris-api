@@ -28,7 +28,7 @@ const input = (blocks: { id?: string; name: string }[]) => ({
   name: 'Culto general',
   color: '#FFB547' as const,
   schedule: null,
-  blocks: blocks.map((block) => ({ ...block, plannedMinutes: 10, defaultPersonId: null })),
+  blocks: blocks.map((block) => ({ ...block, plannedMinutes: 10 })),
 });
 
 describe('ServiceTypesRepository · reemplazo de bloques', () => {

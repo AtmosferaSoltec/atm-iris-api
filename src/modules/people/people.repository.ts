@@ -74,28 +74,10 @@ export class PeopleRepository {
   }
 
   /**
-   * Borrado suave. Ademas quita a la persona como responsable sugerida de las
-   * plantillas y toca esos tipos de servicio para que suban de version y las
-   * consolas se enteren. Los registros de tiempos no se tocan: guardan su
-   * propia copia del nombre.
+   * Borrado suave. Los registros de tiempos no se tocan: guardan su propia
+   * copia del nombre.
    */
   async softDelete(churchId: string, id: string, tx: Tx): Promise<void> {
-    const affected = await tx.serviceType.findMany({
-      where: { churchId, blocks: { some: { defaultPersonId: id } } },
-      select: { id: true },
-    });
-
-    await tx.blockTemplate.updateMany({
-      where: { defaultPersonId: id, serviceType: { churchId } },
-      data: { defaultPersonId: null },
-    });
-    if (affected.length > 0) {
-      await tx.serviceType.updateMany({
-        where: { churchId, id: { in: affected.map((s) => s.id) } },
-        data: { updatedAt: new Date() },
-      });
-    }
-
     await tx.person.update({
       where: { id, churchId },
       data: { deletedAt: new Date() },

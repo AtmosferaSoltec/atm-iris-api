@@ -28,7 +28,6 @@ const blockSchema = z.object({
     .int('Los minutos deben ser un número entero.')
     .min(1, 'El bloque dura al menos 1 minuto.')
     .max(240, 'El bloque dura como máximo 240 minutos.'),
-  defaultPersonId: z.string('Elige una persona o ninguna.').min(1).max(64).nullable(),
 });
 
 export const serviceTypeInputSchema = z.object({
