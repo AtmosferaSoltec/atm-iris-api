@@ -181,25 +181,23 @@ describe('AuthService', () => {
   describe('signIn', () => {
     it('da el mismo error si el correo no existe o si la contrasena esta mal', async () => {
       ctx.repository.findUserByEmail.mockResolvedValueOnce(null);
-      const missing = ctx.service.signIn(
-        { email: 'x@y.org', password: 'x', client: CLIENT },
-        ORIGIN,
-      );
+      // El `.catch` va al crear cada promesa: entre una y otra hay un `await`
+      // (el hash), y una que rechaza sin manejador ese rato la cuenta Node como
+      // rechazo sin atender y Vitest termina con error.
+      const missing = ctx.service
+        .signIn({ email: 'x@y.org', password: 'x', client: CLIENT }, ORIGIN)
+        .catch((e) => e);
 
       ctx.repository.findUserByEmail.mockResolvedValueOnce({
         id: 'user-1',
         passwordHash: await hash('la-buena'),
         isActive: true,
       });
-      const wrong = ctx.service.signIn(
-        { email: 'x@y.org', password: 'la-mala', client: CLIENT },
-        ORIGIN,
-      );
+      const wrong = ctx.service
+        .signIn({ email: 'x@y.org', password: 'la-mala', client: CLIENT }, ORIGIN)
+        .catch((e) => e);
 
-      const errors = await Promise.all([
-        missing.catch((e) => e),
-        wrong.catch((e) => e),
-      ]);
+      const errors = await Promise.all([missing, wrong]);
       expect(errors[0].getResponse()).toEqual(errors[1].getResponse());
       expect(errors[0].getResponse().code).toBe('INVALID_CREDENTIALS');
     });
