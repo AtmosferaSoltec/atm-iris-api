@@ -1,0 +1,52 @@
+# Stack de produccion del API. Se copia a /opt/iris-api desde GitHub Actions en
+# cada despliegue; no se edita a mano en el servidor.
+#
+# Nunca construye: las imagenes se compilan una sola vez en CI y se publican en
+# GHCR. El .env real vive solo en el servidor (/opt/iris-api/.env).
+#
+# Sin base de datos: PostgreSQL es un stack aparte (`atm-postgres`), alcanzable
+# por la red externa `atm-network`. En DATABASE_URL el host es el nombre del
+# contenedor, no localhost.
+
+networks:
+  shared:
+    name: atm-network
+    external: true
+
+services:
+  # Aplica las migraciones pendientes y termina. `app` no arranca hasta que esto
+  # acaba bien, asi que una migracion rota bloquea el despliegue.
+  migrate:
+    image: ghcr.io/atmosferasoltec/atm-iris-api-migrate:${IMAGE_TAG:-latest}
+    command: ["pnpm", "db:deploy"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    networks:
+      - shared
+    restart: "no"
+
+  app:
+    image: ghcr.io/atmosferasoltec/atm-iris-api:${IMAGE_TAG:-latest}
+    container_name: iris-api
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+    # Solo loopback: quien publica al exterior es nginx.
+    ports:
+      - "127.0.0.1:3051:3001"
+    networks:
+      - shared
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "node -e \"fetch('http://127.0.0.1:3001/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    security_opt: ["no-new-privileges:true"]

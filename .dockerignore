@@ -20,3 +20,4 @@ Dockerfile
 README.md
 # Texto de la Biblia descargado (se importa a la base, no viaja en la imagen).
 data
+deploy

@@ -1,0 +1,131 @@
+name: Deploy
+
+on:
+  push:
+    branches: [production]
+
+concurrency:
+  group: deploy-iris-api
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/atmosferasoltec/atm-iris-api
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # prisma.config.ts exige DATABASE_URL aunque `generate` no se conecte.
+      - run: pnpm prisma generate
+        env:
+          DATABASE_URL: postgresql://build:build@localhost:5432/build
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+        env:
+          DATABASE_URL: postgresql://build:build@localhost:5432/build
+
+  build-and-push:
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:sha-${{ github.sha }}
+          cache-from: type=gha,scope=iris-api
+          cache-to: type=gha,scope=iris-api,mode=max
+
+      # Imagen con el CLI de Prisma para `prisma migrate deploy`: la etapa
+      # `builder` del Dockerfile, que conserva node_modules completo.
+      - name: Build and push migrate image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: builder
+          push: true
+          tags: |
+            ${{ env.IMAGE }}-migrate:latest
+            ${{ env.IMAGE }}-migrate:sha-${{ github.sha }}
+          cache-from: type=gha,scope=iris-api
+          cache-to: type=gha,scope=iris-api,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: deploy/docker-compose.yml
+          sparse-checkout-cone-mode: false
+
+      - name: Copy compose file to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: deploy/docker-compose.yml
+          target: /opt/iris-api
+          strip_components: 1
+
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          IMAGE_TAG: sha-${{ github.sha }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: IMAGE_TAG
+          script_stop: true
+          # El login a GHCR vive en el servidor (~/.docker/config.json). Si el
+          # pull da `denied`, renovarlo con `docker login ghcr.io` en el VPS.
+          script: |
+            set -e
+            cd /opt/iris-api
+
+            if [ ! -f .env ]; then
+              echo "::error::Falta /opt/iris-api/.env en el servidor"
+              exit 1
+            fi
+
+            export IMAGE_TAG
+            docker compose pull
+            docker compose up -d
+            docker image prune -f
+
+            for _ in $(seq 1 60); do
+              status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' iris-api 2>/dev/null || echo missing)"
+              if [ "$status" = "healthy" ]; then
+                echo "iris-api esta healthy (${IMAGE_TAG})."
+                exit 0
+              fi
+              sleep 2
+            done
+
+            echo "::error::iris-api no quedo healthy en 120s (estado: ${status}). Ultimos logs:"
+            docker compose logs --tail 50 app migrate
+            exit 1
