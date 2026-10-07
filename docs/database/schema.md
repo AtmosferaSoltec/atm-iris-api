@@ -36,6 +36,9 @@ erDiagram
     bool multimedia_enabled
     bool time_control_enabled
     bigint storage_quota_bytes
+    varchar projection_font_family
+    smallint projection_font_size_pt
+    varchar projection_default_background
     bigint sync_version
   }
   people {
@@ -258,3 +261,17 @@ Las consolas mantienen una copia local con `GET /sync/changes`. Para eso:
 Las tablas de contenido llevan `deleted_at`. Las lecturas normales filtran `deleted_at IS NULL`; la
 sincronización informa los borrados. Los únicos por *nameKey* son **parciales** (`WHERE deleted_at IS NULL`),
 declarados en el schema con la preview `partialIndexes` de Prisma, para poder reutilizar el nombre de algo borrado.
+
+## Interruptores del sistema — `system_features`
+
+| Columna | Tipo | |
+|---|---|---|
+| `key` | varchar(40) PK | nombre del módulo: `bible`, `multimedia`, `timeControl` |
+| `enabled` | boolean | `false` lo apaga para todas las iglesias |
+| `description` | varchar(200) | para quien lo cambia a mano |
+| `updated_at` | timestamptz | |
+
+Sin pantalla: se cambia en la base (`UPDATE iris.system_features SET enabled = true WHERE key = 'bible';`).
+El trigger `system_features_touch_churches` toca todas las iglesias para que suban de `sync_version` y las
+consolas lean sus módulos otra vez. Un módulo sin fila está disponible. La migración
+`20261007020000_system_features` crea la fila de la Biblia en `false`.

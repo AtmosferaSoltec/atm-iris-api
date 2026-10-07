@@ -83,3 +83,10 @@ Módulos `src/modules/church/`, `src/modules/people/`, `src/modules/service-type
 | Verificado con `curl` (25 comprobaciones): forma de `Church`, zona inválida, módulos, `PERSON_NAME_TAKEN` y reuso del nombre tras borrar, idempotencia e `ID_CONFLICT`, 404 entre iglesias, reemplazo de bloques (ids conservados, reorden), borrar responsable sugerido limpia el bloque y sube la versión | — |
 
 - **Responsable por bloque (retirado el 2026-10-07)**: las plantillas ya no llevan `defaultPersonId` (migración `20261007010000_block_templates_drop_default_person`): el responsable rota cada semana y se registra en cada servicio.
+
+- **Proyección (2026-10-07)**: `Church.projection` (contrato §6): `fontFamily` (una de 10 claves — tabla de
+  traducción por plataforma en `src/modules/church/projection-fonts.ts`), `fontSizePt` (40–200, referido a una
+  pantalla de 1920 de ancho) y `defaultBackgroundId` (un fondo de la biblioteca o `null` = negro). Columnas nuevas
+  en `churches` (migración `20261007030000_projection_settings`), sin FK: un id que ya no existe cae a negro sin
+  que la API lo valide. `PUT /church/projection` (mismo patrón que `/church/modules`). Igual para todas las
+  consolas de la iglesia; la web no lo usa (no proyecta).

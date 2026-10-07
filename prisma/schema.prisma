@@ -87,6 +87,15 @@ model Church {
   /// Cuota de almacenamiento de multimedia = el plan de la iglesia. 5 GiB (plan Gratis) por defecto; ver src/modules/church/plans.ts.
   storageQuotaBytes  BigInt  @default(5368709120) @map("storage_quota_bytes")
 
+  /// Como se ve la letra proyectada (contrato §6): tipografia, tamano en puntos
+  /// (referidos a una pantalla de 1920 de ancho; cada cliente escala proporcional)
+  /// y el fondo que se muestra cuando no hay ninguno elegido (imagen subida o uno
+  /// de los degradados; "negro" si no hay ninguno). El id no se valida contra nada:
+  /// si ya no existe, los clientes caen a negro solos.
+  projectionFontFamily        String  @default("system") @map("projection_font_family") @db.VarChar(40)
+  projectionFontSizePt        Int     @default(88) @map("projection_font_size_pt") @db.SmallInt
+  projectionDefaultBackground String? @map("projection_default_background") @db.VarChar(64)
+
   /// Version de sincronizacion: la pone el trigger `bump_sync_version` en cada
   /// INSERT/UPDATE (ver docs/database/schema.md). Nunca se escribe desde el codigo.
   syncVersion BigInt   @default(0) @map("sync_version")
@@ -244,15 +253,15 @@ model ServiceType {
 /// Bloque de una plantilla. Sin version propia: al cambiar, el repositorio toca
 /// el `updated_at` del tipo de servicio y es el padre el que sube de version.
 model BlockTemplate {
-  id              String  @id @default(uuid(7))
-  serviceTypeId   String  @map("service_type_id")
+  id             String @id @default(uuid(7))
+  serviceTypeId  String @map("service_type_id")
   /// Orden dentro del servicio, desde 0.
-  position        Int     @db.SmallInt
-  name            String  @db.VarChar(60)
+  position       Int    @db.SmallInt
+  name           String @db.VarChar(60)
   /// 1-240 (CHECK en la migracion).
-  plannedMinutes  Int     @map("planned_minutes") @db.SmallInt
+  plannedMinutes Int    @map("planned_minutes") @db.SmallInt
 
-  serviceType   ServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
+  serviceType ServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
 
   @@unique([serviceTypeId, position])
   @@map("block_templates")
@@ -372,6 +381,20 @@ model MediaAsset {
 //
 // Contenido global, sin `church_id`: el mismo texto para todas las iglesias.
 // Lo carga `pnpm db:import-bible` (scripts/import-bible.ts).
+
+/// Interruptores de Iris entero, por encima de los modulos de cada iglesia. Los cambia el dueno
+/// del sistema directo en la base, no hay pantalla para esto:
+///   UPDATE iris.system_features SET enabled = true WHERE key = 'bible';
+/// `key` es el nombre del modulo (`bible`, `multimedia`, `timeControl`). Un modulo sin fila esta
+/// disponible. Apagado aqui, ninguna iglesia lo ve, aunque lo tenga encendido en sus ajustes.
+model SystemFeature {
+  key         String   @id @db.VarChar(40)
+  enabled     Boolean
+  description String   @db.VarChar(200)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("system_features")
+}
 
 /// Una traduccion, por codigo: rvr1909 y las que se importen (docs/bible-source.md).
 model BibleTranslation {

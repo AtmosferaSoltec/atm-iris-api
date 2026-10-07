@@ -196,12 +196,24 @@ Ejemplo `AuthResult`:
 | GET | `/church` | — | `Church` | Sesión |
 | PATCH | `/church` | `{ name?, timezone? }` | `Church` | Sesión |
 | PUT | `/church/modules` | `ChurchModules` | `Church` | Sesión |
+| PUT | `/church/projection` | `ProjectionSettingsInput` | `Church` | Sesión |
 
 ```ts
 type ChurchModules = { bible: boolean; multimedia: boolean; timeControl: boolean };  // Letras siempre activo
+type ProjectionFont =
+  | "system" | "systemRounded" | "serif" | "georgia" | "avenirNext"
+  | "futura" | "gillSans" | "optima" | "baskerville" | "palatino";
+type ProjectionSettings = {
+  fontFamily: ProjectionFont;
+  fontSizePt: number;              // 40–200, referido a una pantalla de 1920 de ancho
+  defaultBackgroundId: string | null;  // fondo cuando no hay ninguno elegido; null = negro
+};
+type ProjectionSettingsInput = ProjectionSettings;  // defaultBackgroundId: "" o null limpian
 type Church = {
   id: string; name: string; timezone: string;
-  modules: ChurchModules;
+  modules: ChurchModules;           // lo que la iglesia ve encendido (su elección y lo disponible en Iris)
+  availableModules: ChurchModules;  // módulos que existen hoy en Iris; lo que está en false no se ofrece
+  projection: ProjectionSettings;   // cómo se ve la letra proyectada; igual en todas las consolas
   storage: { usedBytes: number; quotaBytes: number };
   createdAt: string; updatedAt: string;
 };
@@ -209,6 +221,17 @@ type Church = {
 
 - `name` 1–120. `timezone` debe ser una zona IANA válida.
 - Iglesia nueva: los tres módulos en `true`, cuota de **5 GiB** (`5368709120`).
+- **Letra proyectada** (`projection`): tipografía, tamaño y fondo por defecto, iguales en todas las consolas de la
+  iglesia. `fontFamily` es una clave, no un nombre de fuente: cada cliente la traduce a la fuente real de su
+  plataforma (10 claves — ver `src/modules/church/projection-fonts.ts` en la API para la traducción sugerida por
+  plataforma). `defaultBackgroundId` es el id de un fondo (uno de los degradados fijos o una imagen de la
+  biblioteca) que se muestra cuando la consola no tiene ninguno elegido; un id que ya no existe (una imagen
+  borrada) cae a negro sin avisar, los clientes no lo validan contra nada.
+- **Módulos del sistema** (`availableModules`): el dueño de Iris puede apagar un módulo para todas las iglesias
+  (tabla `system_features`, sin pantalla). Mientras esté apagado, `modules` lo trae en `false` aunque la iglesia lo
+  haya encendido (su elección se guarda y vuelve sola al habilitarlo), y los clientes **no lo muestran**, ni
+  siquiera el interruptor en ajustes. Al cambiar un interruptor del sistema, todas las iglesias suben de versión
+  en `/sync` y las consolas lo reciben en el siguiente ciclo. **Hoy la Biblia está apagada** (`bible: false`).
 
 ---
 
@@ -435,7 +458,9 @@ type BibleDownload = {
 ```
 
 - Las consolas descargan `download` una vez (y de nuevo si cambia `version`) y buscan sin conexión.
-- Requieren sesión; no dependen del módulo `bible` (el módulo solo oculta la función en la consola).
+- Requieren sesión; no dependen del módulo `bible` de cada iglesia (el módulo solo oculta la función en la consola).
+- Con la Biblia apagada para todo Iris (`availableModules.bible = false`) todas estas rutas responden
+  404 `NOT_FOUND` «La Biblia no está disponible por ahora.».
 
 ---
 

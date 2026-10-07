@@ -5,7 +5,7 @@ import type { PrismaService } from '../src/database/prisma.service.js';
 import { authed, cleanUp, createTestApp, signUp } from './helpers.js';
 
 type Page = {
-  church: { modules: { multimedia: boolean } } | null;
+  church: { modules: { bible: boolean; multimedia: boolean } } | null;
   changes: Record<string, { id: string; name?: string }[]>;
   deleted: Record<string, string[]>;
   cursor: string;
@@ -74,6 +74,17 @@ describe('sincronización (e2e)', () => {
     await api.put('/church/modules', { bible: true, multimedia: false, timeControl: true });
     const modules = await page(cursor);
     expect(modules.church?.modules.multimedia).toBe(false);
+    expect(modules.church?.modules.bible).toBe(false);
+    cursor = modules.cursor;
+
+    // Encender la Biblia para todo Iris, a mano en la base, llega a las consolas sin otro cambio.
+    await prisma.systemFeature.update({ where: { key: 'bible' }, data: { enabled: true } });
+    try {
+      const switched = await page(cursor);
+      expect(switched.church?.modules.bible).toBe(true);
+    } finally {
+      await prisma.systemFeature.update({ where: { key: 'bible' }, data: { enabled: false } });
+    }
 
     expect((await api.get('/sync/changes?since=-1')).body.code).toBe('VALIDATION_FAILED');
   });

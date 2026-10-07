@@ -25,8 +25,15 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
     const church = await api.get('/church');
     expect(church.body.data).toMatchObject({
       timezone: 'America/Lima',
-      modules: { bible: true, multimedia: true, timeControl: true },
+      // La Biblia esta apagada para todo Iris (system_features): la iglesia no la ve.
+      modules: { bible: false, multimedia: true, timeControl: true },
+      availableModules: { bible: false, multimedia: true, timeControl: true },
       storage: { usedBytes: 0, quotaBytes: 5368709120 },
+    });
+    expect(church.body.data.projection).toEqual({
+      fontFamily: 'system',
+      fontSizePt: 88,
+      defaultBackgroundId: null,
     });
 
     expect((await api.patch('/church', { timezone: 'Marte/Base' })).status).toBe(400);
@@ -39,6 +46,52 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
       timeControl: false,
     });
     expect(modules.body.data.modules).toEqual({ bible: false, multimedia: true, timeControl: false });
+  });
+
+  it('PUT /church/projection valida y guarda tipografía, tamaño y fondo por defecto', async () => {
+    const api = authed(app, (await signUp(app)).accessToken);
+
+    expect((await api.put('/church/projection', { fontFamily: 'inventada', fontSizePt: 88 })).status).toBe(400);
+    expect((await api.put('/church/projection', { fontFamily: 'georgia', fontSizePt: 20 })).status).toBe(400);
+    expect((await api.put('/church/projection', { fontFamily: 'georgia', fontSizePt: 300 })).status).toBe(400);
+
+    const saved = await api.put('/church/projection', {
+      fontFamily: 'georgia',
+      fontSizePt: 112,
+      defaultBackgroundId: 'media-abc',
+    });
+    expect(saved.status).toBe(200);
+    expect(saved.body.data.projection).toEqual({
+      fontFamily: 'georgia',
+      fontSizePt: 112,
+      defaultBackgroundId: 'media-abc',
+    });
+
+    // "" y null borran el fondo por defecto (vuelve a negro); no tienen que repetir el resto.
+    const cleared = await api.put('/church/projection', { fontFamily: 'georgia', fontSizePt: 112, defaultBackgroundId: '' });
+    expect(cleared.body.data.projection.defaultBackgroundId).toBeNull();
+
+    expect((await api.get('/church')).body.data.projection.fontFamily).toBe('georgia');
+  });
+
+  it('un módulo apagado para todo Iris no se enciende desde la iglesia, pero su elección se guarda', async () => {
+    const api = authed(app, (await signUp(app)).accessToken);
+
+    const asked = await api.put('/church/modules', { bible: true, multimedia: true, timeControl: true });
+    expect(asked.body.data.modules.bible).toBe(false);
+
+    // Otro cliente guarda los módulos con la Biblia oculta (en false): no pisa la elección.
+    await api.put('/church/modules', { bible: false, multimedia: true, timeControl: true });
+
+    await prisma.systemFeature.update({ where: { key: 'bible' }, data: { enabled: true } });
+    try {
+      const church = await api.get('/church');
+      expect(church.body.data.modules.bible).toBe(true);
+      expect(church.body.data.availableModules.bible).toBe(true);
+    } finally {
+      await prisma.systemFeature.update({ where: { key: 'bible' }, data: { enabled: false } });
+    }
+    expect((await api.get('/church')).body.data.modules.bible).toBe(false);
   });
 
   it('personas: duplicado por nameKey, reuso tras borrar e idempotencia por id', async () => {

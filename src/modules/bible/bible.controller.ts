@@ -4,37 +4,47 @@ import type { Response } from 'express';
 
 import { ApiData } from '../../common/swagger/api-schemas.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
+import { SystemFeaturesService } from '../system-features/system-features.service.js';
 import { BibleService } from './bible.service.js';
 import type { BibleBook, BibleChapter, BibleTranslation } from './bible.types.js';
 import { chapterParamsSchema, type ChapterParams } from './dto/bible.schema.js';
 
-/** Requiere sesion pero ningun permiso; no depende del modulo `bible`. */
+/**
+ * Requiere sesion. No depende del modulo `bible` de cada iglesia, pero si del
+ * interruptor de Iris entero (`system_features`): apagado, todo responde 404.
+ */
 @ApiTags('bible')
 @ApiBearerAuth()
 @Controller('bible/translations')
 export class BibleController {
-  constructor(private readonly bible: BibleService) {}
+  constructor(
+    private readonly bible: BibleService,
+    private readonly features: SystemFeaturesService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Traducciones disponibles' })
   @ApiData('BibleTranslation', { isArray: true })
-  list(): Promise<BibleTranslation[]> {
+  async list(): Promise<BibleTranslation[]> {
+    await this.features.assertAvailable('bible');
     return this.bible.listTranslations();
   }
 
   @Get(':code/books')
   @ApiOperation({ summary: 'Libros en orden canónico' })
   @ApiData('BibleBook', { isArray: true })
-  books(@Param('code') code: string): Promise<BibleBook[]> {
+  async books(@Param('code') code: string): Promise<BibleBook[]> {
+    await this.features.assertAvailable('bible');
     return this.bible.listBooks(code);
   }
 
   @Get(':code/books/:bookId/chapters/:chapter')
   @ApiOperation({ summary: 'Versículos de un capítulo' })
   @ApiData('BibleChapter')
-  chapter(
+  async chapter(
     @Param(new ZodValidationPipe(chapterParamsSchema)) params: ChapterParams,
   ): Promise<BibleChapter> {
+    await this.features.assertAvailable('bible');
     return this.bible.getChapter(params.code, params.bookId, params.chapter);
   }
 
@@ -53,6 +63,7 @@ export class BibleController {
     @Headers('if-none-match') ifNoneMatch: string | undefined,
     @Res() response: Response,
   ): Promise<void> {
+    await this.features.assertAvailable('bible');
     const { etag, body } = await this.bible.getDownload(code);
 
     response.setHeader('ETag', etag);

@@ -19,6 +19,8 @@ describe.runIf(imported)('Biblia (e2e, requiere la RVR1909 importada)', () => {
 
   beforeAll(async () => {
     ({ app, prisma } = await createTestApp());
+    // La migracion deja la Biblia apagada para todo Iris: estas pruebas la encienden.
+    await prisma.systemFeature.update({ where: { key: 'bible' }, data: { enabled: true } });
     await app.listen(0, '127.0.0.1');
     port = (app.getHttpServer().address() as AddressInfo).port;
     token = (await signUp(app)).accessToken;
@@ -42,8 +44,29 @@ describe.runIf(imported)('Biblia (e2e, requiere la RVR1909 importada)', () => {
   }
 
   afterAll(async () => {
+    await prisma.systemFeature.update({ where: { key: 'bible' }, data: { enabled: false } });
     await cleanUp(prisma);
     await app.close();
+  });
+
+  it('apagada para todo Iris: todas sus rutas responden 404 y vuelven al encenderla', async () => {
+    const api = authed(app, token);
+    await prisma.systemFeature.update({ where: { key: 'bible' }, data: { enabled: false } });
+    try {
+      for (const path of [
+        '/bible/translations',
+        '/bible/translations/rvr1909/books',
+        '/bible/translations/rvr1909/books/JHN/chapters/3',
+        '/bible/translations/rvr1909/download',
+      ]) {
+        const response = await api.get(path);
+        expect(response.status).toBe(404);
+        expect(response.body.message).toBe('La Biblia no está disponible por ahora.');
+      }
+    } finally {
+      await prisma.systemFeature.update({ where: { key: 'bible' }, data: { enabled: true } });
+    }
+    expect((await api.get('/bible/translations')).status).toBe(200);
   });
 
   it('libros y Juan 3:16', async () => {

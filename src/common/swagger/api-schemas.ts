@@ -64,6 +64,12 @@ const church = object({
   name: str(),
   timezone: str(),
   modules: object({ bible: bool, multimedia: bool, timeControl: bool }),
+  availableModules: object({ bible: bool, multimedia: bool, timeControl: bool }),
+  projection: object({
+    fontFamily: str(),
+    fontSizePt: int(),
+    defaultBackgroundId: nullable(str()),
+  }),
   storage: object({ usedBytes: int(), quotaBytes: int() }),
   createdAt: date,
   updatedAt: date,

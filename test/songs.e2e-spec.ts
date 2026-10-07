@@ -54,6 +54,8 @@ describe('canciones (e2e)', () => {
     const senor = await api.get('/songs?search=senor');
     expect(senor.body.meta.total).toBe(1);
 
+    expect((await api.post('/songs', SONGS[1])).status).toBe(201);
+
     const typo = await api.get('/songs?search=castilo');
     expect(typo.body.data[0].title).toBe('Castillo fuerte');
 

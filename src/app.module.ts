@@ -24,6 +24,7 @@ import { ServiceRecordsModule } from './modules/service-records/service-records.
 import { ServiceTypesModule } from './modules/service-types/service-types.module.js';
 import { SongsModule } from './modules/songs/songs.module.js';
 import { SyncModule } from './modules/sync/sync.module.js';
+import { SystemFeaturesModule } from './modules/system-features/system-features.module.js';
 
 const LOG_LEVEL: Record<string, string> = {
   production: 'info',
@@ -89,6 +90,7 @@ const LOG_LEVEL: Record<string, string> = {
     MailModule,
     StorageModule,
     AuthModule,
+    SystemFeaturesModule,
     ChurchModule,
     PeopleModule,
     ServiceTypesModule,

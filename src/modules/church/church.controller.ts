@@ -10,8 +10,10 @@ import type { Church } from './church.types.js';
 import {
   churchModulesSchema,
   updateChurchSchema,
+  updateProjectionSchema,
   type ChurchModulesInput,
   type UpdateChurchInput,
+  type UpdateProjectionInput,
 } from './dto/church.schema.js';
 
 @ApiTags('church')
@@ -45,5 +47,15 @@ export class ChurchController {
     @Body(new ZodValidationPipe(churchModulesSchema)) dto: ChurchModulesInput,
   ): Promise<Church> {
     return this.church.setModules(user.churchId, dto);
+  }
+
+  @Put('projection')
+  @ApiOperation({ summary: 'Tipografía, tamaño y fondo por defecto de la letra proyectada' })
+  @ApiData('Church')
+  setProjection(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(updateProjectionSchema)) dto: UpdateProjectionInput,
+  ): Promise<Church> {
+    return this.church.setProjection(user.churchId, dto);
   }
 }
