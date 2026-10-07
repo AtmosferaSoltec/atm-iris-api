@@ -84,7 +84,7 @@ model Church {
   bibleEnabled       Boolean @default(true) @map("bible_enabled")
   multimediaEnabled  Boolean @default(true) @map("multimedia_enabled")
   timeControlEnabled Boolean @default(true) @map("time_control_enabled")
-  /// Cuota de almacenamiento de multimedia. 5 GiB por defecto.
+  /// Cuota de almacenamiento de multimedia = el plan de la iglesia. 5 GiB (plan Gratis) por defecto; ver src/modules/church/plans.ts.
   storageQuotaBytes  BigInt  @default(5368709120) @map("storage_quota_bytes")
 
   /// Version de sincronizacion: la pone el trigger `bump_sync_version` en cada

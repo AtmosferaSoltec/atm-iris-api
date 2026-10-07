@@ -26,6 +26,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed:dev": "tsx prisma/seed-dev.ts",
     "db:import-bible": "tsx scripts/import-bible.ts",
+    "db:set-plan": "tsx scripts/set-plan.ts",
     "db:reset": "prisma migrate reset"
   },
   "dependencies": {
