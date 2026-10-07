@@ -83,51 +83,59 @@ jobs:
           sparse-checkout: deploy/docker-compose.yml
           sparse-checkout-cone-mode: false
 
-      - name: Copy compose file to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          source: deploy/docker-compose.yml
-          target: /opt/iris-api
-          strip_components: 1
-
-      - name: Deploy on server
-        uses: appleboy/ssh-action@v1.2.0
+      # Una sola conexion SSH (ControlMaster) para copiar el compose y desplegar,
+      # con reintentos al abrirla: si sshd o fail2ban cortan un handshake suelto
+      # (`ssh: handshake failed: EOF`), el despliegue no se cae por eso.
+      - name: Copy compose file and deploy on server
         env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
           IMAGE_TAG: sha-${{ github.sha }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          envs: IMAGE_TAG
-          script_stop: true
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          opts=(-i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20
+            -o ServerAliveInterval=15 -o ControlMaster=auto -o ControlPath=~/.ssh/cm-%C -o ControlPersist=120)
+          target="$SSH_USER@$SSH_HOST"
+
+          for attempt in 1 2 3 4 5; do
+            if ssh "${opts[@]}" "$target" true; then break; fi
+            if [ "$attempt" = 5 ]; then echo "::error::No se pudo abrir la conexion SSH tras 5 intentos"; exit 1; fi
+            echo "SSH fallo (intento $attempt); reintento en $((attempt * 10)) s"
+            sleep $((attempt * 10))
+          done
+
+          scp "${opts[@]}" deploy/docker-compose.yml "$target:/opt/iris-api/docker-compose.yml"
+
           # El login a GHCR vive en el servidor (~/.docker/config.json). Si el
           # pull da `denied`, renovarlo con `docker login ghcr.io` en el VPS.
-          script: |
-            set -e
-            cd /opt/iris-api
+          ssh "${opts[@]}" "$target" "IMAGE_TAG=$IMAGE_TAG bash -s" <<'REMOTE'
+          set -e
+          cd /opt/iris-api
 
-            if [ ! -f .env ]; then
-              echo "::error::Falta /opt/iris-api/.env en el servidor"
-              exit 1
-            fi
-
-            export IMAGE_TAG
-            docker compose pull
-            docker compose up -d
-            docker image prune -f
-
-            for _ in $(seq 1 60); do
-              status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' iris-api 2>/dev/null || echo missing)"
-              if [ "$status" = "healthy" ]; then
-                echo "iris-api esta healthy (${IMAGE_TAG})."
-                exit 0
-              fi
-              sleep 2
-            done
-
-            echo "::error::iris-api no quedo healthy en 120s (estado: ${status}). Ultimos logs:"
-            docker compose logs --tail 50 app migrate
+          if [ ! -f .env ]; then
+            echo "::error::Falta /opt/iris-api/.env en el servidor"
             exit 1
+          fi
+
+          export IMAGE_TAG
+          docker compose pull
+          docker compose up -d
+          docker image prune -f
+
+          for _ in $(seq 1 60); do
+            status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' iris-api 2>/dev/null || echo missing)"
+            if [ "$status" = "healthy" ]; then
+              echo "iris-api esta healthy (${IMAGE_TAG})."
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "::error::iris-api no quedo healthy en 120s (estado: ${status}). Ultimos logs:"
+          docker compose logs --tail 50 app migrate
+          exit 1
+          REMOTE
