@@ -53,7 +53,8 @@ Tabla de tipos y máximos exacta del contrato §11 en `media.constants.ts`.
    y devuelve `UploadTicket` con `headers: { "Content-Type": contentType }`.
 2. `POST /media`: busca la subida (de esta iglesia, sin confirmar, sin vencer); `headObject` debe existir y medir
    `size_bytes` (si no, `UPLOAD_NOT_FOUND`). Crea el `media_asset` con el **mismo id** que la subida.
-   `isBackground` solo vale `true` para `image` (si no, ignóralo y guarda `false`).
+   `isBackground` (fondo de las letras) vale `true` para imagen o video que cumpla `src/modules/media/media.background.ts`
+   (16:9, imagen 1280×720–3840×2160, video MP4 de hasta 30 s y 1920×1080, peso máximo); si no, 400 `VALIDATION_FAILED`. Un audio no puede ser fondo.
 3. `GET /media` (filtros `kind`, `isBackground`, `search` por `title_key`), `GET /:id`, `PATCH`, `DELETE` (suave).
 4. `GET /media/:id/download-url`: GET firmado de 1 h con `ResponseContentDisposition` usando `file_name`.
 5. **Limpieza**: tarea programada cada hora (`@nestjs/schedule`) que (a) borra del almacenamiento y de la tabla

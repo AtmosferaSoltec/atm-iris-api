@@ -23,6 +23,7 @@ import type {
   ListMediaQuery,
   UpdateMediaInput,
 } from './dto/media.schema.js';
+import { backgroundProblem } from './media.background.js';
 import {
   DOWNLOAD_TTL_SECONDS,
   MEDIA_RULES,
@@ -160,9 +161,20 @@ export class MediaService {
         throw uploadNotFound();
       }
 
-      const isImage = upload.kind === 'IMAGE';
       const hasDuration = upload.kind !== 'IMAGE';
       const hasSize = upload.kind !== 'AUDIO';
+
+      if (input.isBackground) {
+        const problem = backgroundProblem({
+          kind: upload.kind.toLowerCase() as 'image' | 'video' | 'audio',
+          contentType: upload.contentType,
+          sizeBytes: Number(upload.sizeBytes),
+          width: input.width ?? null,
+          height: input.height ?? null,
+          durationSeconds: input.durationSeconds ?? null,
+        });
+        if (problem) throw invalidBackground(problem);
+      }
 
       const row = await this.repository.confirmUpload(
         user.churchId,
@@ -174,8 +186,7 @@ export class MediaService {
           durationSeconds: hasDuration ? input.durationSeconds : null,
           width: hasSize ? input.width : null,
           height: hasSize ? input.height : null,
-          // Solo una imagen puede ser fondo de la consola.
-          isBackground: isImage && input.isBackground,
+          isBackground: input.isBackground,
         },
         tx,
       );
@@ -225,6 +236,18 @@ export class MediaService {
       const current = await this.repository.findActive(churchId, id, tx);
       if (!current) throw mediaNotFound();
 
+      if (input.isBackground) {
+        const problem = backgroundProblem({
+          kind: current.kind.toLowerCase() as 'image' | 'video' | 'audio',
+          contentType: current.contentType,
+          sizeBytes: Number(current.sizeBytes),
+          width: current.width,
+          height: current.height,
+          durationSeconds: current.durationSeconds,
+        });
+        if (problem) throw invalidBackground(problem);
+      }
+
       const row = await this.repository.update(
         churchId,
         id,
@@ -234,7 +257,7 @@ export class MediaService {
             : {}),
           ...(input.description !== undefined ? { description: input.description } : {}),
           ...(input.isBackground !== undefined
-            ? { isBackground: current.kind === 'IMAGE' && input.isBackground }
+            ? { isBackground: input.isBackground }
             : {}),
         },
         tx,
@@ -252,6 +275,13 @@ export class MediaService {
     });
   }
 }
+
+const invalidBackground = (message: string) =>
+  new BadRequestException({
+    code: API_ERROR_CODES.VALIDATION_FAILED,
+    message,
+    errors: { isBackground: message },
+  });
 
 function formatBytes(bytes: number): string {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];

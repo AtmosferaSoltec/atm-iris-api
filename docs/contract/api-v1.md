@@ -339,7 +339,7 @@ type MediaAsset = {
   fileName: string; contentType: string; sizeBytes: number;
   durationSeconds: number | null; // audio y video
   width: number | null; height: number | null;   // imagen y video
-  isBackground: boolean;          // solo imágenes: aparece en el selector de fondos de la consola
+  isBackground: boolean;          // fondo de las letras (imagen o video); ver "Fondos" abajo
   createdAt: string; updatedAt: string;
 };
 ```
@@ -349,6 +349,18 @@ type MediaAsset = {
 | `image` | `image/jpeg`, `image/png`, `image/webp` | 20 MB |
 | `video` | `video/mp4`, `video/quicktime` | 2 GB |
 | `audio` | `audio/mpeg`, `audio/mp4`, `audio/aac`, `audio/wav`, `audio/x-wav` | 200 MB |
+
+**Fondos** (`isBackground: true`): imágenes o videos que las consolas muestran detrás de la letra. Al confirmar (`POST /media`) o al marcarlo (`PATCH`) la API valida, con los metadatos del medio, y responde 400 `VALIDATION_FAILED` (`errors.isBackground`) con el motivo:
+
+| | Imagen | Video |
+|---|---|---|
+| Formato | JPG, PNG, WebP | solo MP4 |
+| Proporción | 16:9 (±2 %) | 16:9 (±2 %) |
+| Tamaño | 1280 × 720 a 3840 × 2160; recomendado 1920 × 1080 | 1280 × 720 a 1920 × 1080 |
+| Duración | — | hasta **30 s**; las consolas lo repiten en bucle y sin sonido |
+| Peso | hasta 10 MB | hasta 100 MB |
+
+Un audio no puede ser fondo. Los fondos cuentan para la cuota como cualquier medio.
 
 Flujo:
 1. `POST /media/uploads` valida tipo, tamaño y cuota (`UNSUPPORTED_MEDIA_TYPE`, `FILE_TOO_LARGE`, `STORAGE_QUOTA_EXCEEDED`).
