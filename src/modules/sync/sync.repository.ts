@@ -47,6 +47,10 @@ export class SyncRepository {
         (SELECT 'serviceRecords', id, sync_version, deleted_at IS NOT NULL
            FROM service_records WHERE church_id = ${churchId} AND sync_version > ${since}
            ORDER BY sync_version LIMIT ${take})
+        UNION ALL
+        (SELECT 'servicePlan', id, sync_version, deleted_at IS NOT NULL
+           FROM service_plan_items WHERE church_id = ${churchId} AND sync_version > ${since}
+           ORDER BY sync_version LIMIT ${take})
       ) AS candidates
       ORDER BY sync_version
       LIMIT ${take}`;

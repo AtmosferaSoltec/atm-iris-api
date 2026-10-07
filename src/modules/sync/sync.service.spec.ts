@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChurchService } from '../church/church.service.js';
 import type { MediaRepository } from '../media/media.repository.js';
 import type { PeopleRepository } from '../people/people.repository.js';
+import type { ServicePlanRepository } from '../service-plan/service-plan.repository.js';
 import type { ServiceRecordsRepository } from '../service-records/service-records.repository.js';
 import type { ServiceTypesRepository } from '../service-types/service-types.repository.js';
 import type { SongsRepository } from '../songs/songs.repository.js';
@@ -47,6 +48,7 @@ function setup() {
     empty as unknown as SongsRepository,
     empty as unknown as MediaRepository,
     empty as unknown as ServiceRecordsRepository,
+    empty as unknown as ServicePlanRepository,
   );
   return { repository, church, people, service };
 }
@@ -107,8 +109,22 @@ describe('SyncService', () => {
 
     expect(page).toEqual({
       church: null,
-      changes: { people: [], serviceTypes: [], songs: [], media: [], serviceRecords: [] },
-      deleted: { people: [], serviceTypes: [], songs: [], media: [], serviceRecords: [] },
+      changes: {
+        people: [],
+        serviceTypes: [],
+        songs: [],
+        media: [],
+        serviceRecords: [],
+        servicePlan: [],
+      },
+      deleted: {
+        people: [],
+        serviceTypes: [],
+        songs: [],
+        media: [],
+        serviceRecords: [],
+        servicePlan: [],
+      },
       cursor: '10',
       hasMore: false,
     });

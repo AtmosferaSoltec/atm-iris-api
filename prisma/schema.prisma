@@ -42,6 +42,14 @@ enum MediaKind {
   @@map("media_kind")
 }
 
+/// Que referencia un `ServicePlanItem`: una cancion (letra) o un medio.
+enum PlanItemKind {
+  SONG
+  MEDIA
+
+  @@map("plan_item_kind")
+}
+
 /// `ADJUSTED` solo lo pone la API cuando alguien corrige la duracion real.
 enum BlockStatus {
   COMPLETED
@@ -102,14 +110,15 @@ model Church {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  users          User[]
-  sessions       Session[]
-  people         Person[]
-  serviceTypes   ServiceType[]
-  songs          Song[]
-  mediaUploads   MediaUpload[]
-  mediaAssets    MediaAsset[]
-  serviceRecords ServiceRecord[]
+  users            User[]
+  sessions         Session[]
+  people           Person[]
+  serviceTypes     ServiceType[]
+  songs            Song[]
+  mediaUploads     MediaUpload[]
+  mediaAssets      MediaAsset[]
+  serviceRecords   ServiceRecord[]
+  servicePlanItems ServicePlanItem[]
 
   @@index([syncVersion])
   @@map("churches")
@@ -373,6 +382,38 @@ model MediaAsset {
   @@index([churchId, kind, createdAt(sort: Desc)])
   @@index([churchId, syncVersion])
   @@map("media_assets")
+}
+
+// ===========================================================================
+// Plan de servicio
+// ===========================================================================
+//
+// Lo que la web adelanta para el proximo servicio, sin importar el tipo: las
+// consolas lo abren ya cargado (contrato §15). No guarda historial por
+// servicio, solo el estado actual; se agrega y se quita libremente desde
+// cualquier cliente (web, iPad, Windows) y queda igual en los demas.
+
+/// Una cancion o un medio ya elegido para el proximo servicio. `refId` no lleva
+/// llave foranea (sigue el patron de `projectionDefaultBackground`): al
+/// borrarse la cancion o el medio referenciado, el servicio que lo borra
+/// tambien borra (suave) estas filas, asi nunca queda una referencia colgando.
+model ServicePlanItem {
+  id          String       @id @default(uuid(7))
+  churchId    String       @map("church_id")
+  kind        PlanItemKind
+  refId       String       @map("ref_id")
+  /// Orden en la lista, desde 0.
+  position    Int          @db.SmallInt
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz(3)
+  syncVersion BigInt       @default(0) @map("sync_version")
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  church Church @relation(fields: [churchId], references: [id], onDelete: Cascade)
+
+  @@index([churchId, position])
+  @@index([churchId, syncVersion])
+  @@map("service_plan_items")
 }
 
 // ===========================================================================

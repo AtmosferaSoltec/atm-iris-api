@@ -14,9 +14,11 @@ import {
   type Paginated,
 } from '../../common/dto/pagination.schema.js';
 import { notFound } from '../../common/exceptions/api-errors.js';
+import { PlanItemKind } from '../../generated/prisma/client.js';
 import { StoragePort } from '../../integrations/storage/storage.port.js';
 import { nameKey } from '../../shared/utils/text.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
+import { ServicePlanRepository } from '../service-plan/service-plan.repository.js';
 import type {
   ConfirmUploadInput,
   CreateUploadInput,
@@ -46,6 +48,7 @@ export class MediaService {
   constructor(
     private readonly repository: MediaRepository,
     private readonly storage: StoragePort,
+    private readonly servicePlan: ServicePlanRepository,
   ) {}
 
   /**
@@ -146,10 +149,18 @@ export class MediaService {
     input: ConfirmUploadInput,
   ): Promise<ConfirmedAsset> {
     return this.repository.withLock(user.churchId, async (tx) => {
-      const upload = await this.repository.findUpload(user.churchId, input.uploadId, tx);
+      const upload = await this.repository.findUpload(
+        user.churchId,
+        input.uploadId,
+        tx,
+      );
 
       if (upload?.confirmedAt) {
-        const existing = await this.repository.findActive(user.churchId, upload.id, tx);
+        const existing = await this.repository.findActive(
+          user.churchId,
+          upload.id,
+          tx,
+        );
         if (existing) return { asset: toMediaAsset(existing), isNew: false };
       }
       if (!upload || upload.confirmedAt || upload.expiresAt <= new Date()) {
@@ -231,7 +242,11 @@ export class MediaService {
     };
   }
 
-  update(churchId: string, id: string, input: UpdateMediaInput): Promise<MediaAsset> {
+  update(
+    churchId: string,
+    id: string,
+    input: UpdateMediaInput,
+  ): Promise<MediaAsset> {
     return this.repository.withLock(churchId, async (tx) => {
       const current = await this.repository.findActive(churchId, id, tx);
       if (!current) throw mediaNotFound();
@@ -255,7 +270,9 @@ export class MediaService {
           ...(input.title !== undefined
             ? { title: input.title, titleKey: nameKey(input.title) }
             : {}),
-          ...(input.description !== undefined ? { description: input.description } : {}),
+          ...(input.description !== undefined
+            ? { description: input.description }
+            : {}),
           ...(input.isBackground !== undefined
             ? { isBackground: input.isBackground }
             : {}),
@@ -272,6 +289,13 @@ export class MediaService {
       const current = await this.repository.findActive(churchId, id, tx);
       if (!current) throw mediaNotFound();
       await this.repository.softDelete(churchId, id, tx);
+      // Sin esto, el plan adelantado quedaria con una referencia colgando.
+      await this.servicePlan.softDeleteByRef(
+        churchId,
+        PlanItemKind.MEDIA,
+        id,
+        tx,
+      );
     });
   }
 }

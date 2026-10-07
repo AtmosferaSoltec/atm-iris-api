@@ -1,4 +1,8 @@
-import { Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
+import {
+  Module,
+  type MiddlewareConsumer,
+  type NestModule,
+} from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -20,6 +24,7 @@ import { ChurchModule } from './modules/church/church.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { MediaModule } from './modules/media/media.module.js';
 import { PeopleModule } from './modules/people/people.module.js';
+import { ServicePlanModule } from './modules/service-plan/service-plan.module.js';
 import { ServiceRecordsModule } from './modules/service-records/service-records.module.js';
 import { ServiceTypesModule } from './modules/service-types/service-types.module.js';
 import { SongsModule } from './modules/songs/songs.module.js';
@@ -98,6 +103,7 @@ const LOG_LEVEL: Record<string, string> = {
     MediaModule,
     BibleModule,
     ServiceRecordsModule,
+    ServicePlanModule,
     SyncModule,
     HealthModule,
   ],

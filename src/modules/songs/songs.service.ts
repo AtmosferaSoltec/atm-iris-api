@@ -6,7 +6,9 @@ import {
   type Paginated,
 } from '../../common/dto/pagination.schema.js';
 import { idConflict, notFound } from '../../common/exceptions/api-errors.js';
+import { PlanItemKind } from '../../generated/prisma/client.js';
 import { nameKey, searchText } from '../../shared/utils/text.js';
+import { ServicePlanRepository } from '../service-plan/service-plan.repository.js';
 import type {
   CreateSongInput,
   ListSongsQuery,
@@ -20,7 +22,10 @@ export type SavedSong = { song: Song; isNew: boolean };
 
 @Injectable()
 export class SongsService {
-  constructor(private readonly repository: SongsRepository) {}
+  constructor(
+    private readonly repository: SongsRepository,
+    private readonly servicePlan: ServicePlanRepository,
+  ) {}
 
   async list(
     churchId: string,
@@ -116,6 +121,13 @@ export class SongsService {
       const current = await this.repository.findActive(churchId, id, tx);
       if (!current) throw songNotFound();
       await this.repository.softDelete(churchId, id, tx);
+      // Sin esto, el plan adelantado quedaria con una referencia colgando.
+      await this.servicePlan.softDeleteByRef(
+        churchId,
+        PlanItemKind.SONG,
+        id,
+        tx,
+      );
     });
   }
 }

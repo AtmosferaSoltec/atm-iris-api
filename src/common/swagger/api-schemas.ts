@@ -64,7 +64,11 @@ const church = object({
   name: str(),
   timezone: str(),
   modules: object({ bible: bool, multimedia: bool, timeControl: bool }),
-  availableModules: object({ bible: bool, multimedia: bool, timeControl: bool }),
+  availableModules: object({
+    bible: bool,
+    multimedia: bool,
+    timeControl: bool,
+  }),
   projection: object({
     fontFamily: str(),
     fontSizePt: int(),
@@ -163,12 +167,22 @@ const serviceRecord = object({
   updatedAt: date,
 });
 
+const servicePlanItem = object({
+  id: uuid,
+  kind: str({ enum: ['song', 'media'] }),
+  refId: uuid,
+  position: int(),
+  createdAt: date,
+  updatedAt: date,
+});
+
 const idLists = object({
   people: array(uuid),
   serviceTypes: array(uuid),
   songs: array(uuid),
   media: array(uuid),
   serviceRecords: array(uuid),
+  servicePlan: array(uuid),
 });
 
 export const API_SCHEMAS: Record<string, SchemaObject> = {
@@ -235,6 +249,7 @@ export const API_SCHEMAS: Record<string, SchemaObject> = {
   MediaAsset: mediaAsset,
   DownloadUrl: object({ url: str({ format: 'uri' }), expiresAt: date }),
   ServiceRecord: serviceRecord,
+  ServicePlanItem: servicePlanItem,
   SyncPage: object({
     church: { ...ref('Church'), nullable: true } as Schema,
     changes: object({
@@ -243,6 +258,7 @@ export const API_SCHEMAS: Record<string, SchemaObject> = {
       songs: array(ref('Song')),
       media: array(ref('MediaAsset')),
       serviceRecords: array(ref('ServiceRecord')),
+      servicePlan: array(ref('ServicePlanItem')),
     }),
     deleted: idLists,
     cursor: str({ example: '1532' }),

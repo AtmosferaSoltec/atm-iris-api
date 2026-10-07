@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ChurchModule } from '../church/church.module.js';
 import { MediaModule } from '../media/media.module.js';
 import { PeopleModule } from '../people/people.module.js';
+import { ServicePlanModule } from '../service-plan/service-plan.module.js';
 import { ServiceRecordsModule } from '../service-records/service-records.module.js';
 import { ServiceTypesModule } from '../service-types/service-types.module.js';
 import { SongsModule } from '../songs/songs.module.js';
@@ -19,6 +20,7 @@ import { SyncService } from './sync.service.js';
     SongsModule,
     MediaModule,
     ServiceRecordsModule,
+    ServicePlanModule,
   ],
   controllers: [SyncController],
   providers: [SyncService, SyncRepository],
