@@ -15,7 +15,6 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { RequirePermissions } from '../../common/decorators/require-permissions.decorator.js';
 import type { Paginated } from '../../common/dto/pagination.schema.js';
 import { ApiData, ApiPaginated } from '../../common/swagger/api-schemas.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
@@ -53,7 +52,6 @@ export class SongsController {
 
   // Antes de `:id` para que "import" no se tome por un id.
   @Post('import')
-  @RequirePermissions('songs.manage')
   @ApiOperation({
     summary: 'Importar hasta 50 canciones; salta los títulos que ya existen',
   })
@@ -76,7 +74,6 @@ export class SongsController {
   }
 
   @Post()
-  @RequirePermissions('songs.manage')
   @ApiOperation({ summary: 'Crear una canción (201; 200 si el id ya existía)' })
   @ApiData('Song', { status: 201 })
   async create(
@@ -90,7 +87,6 @@ export class SongsController {
   }
 
   @Put(':id')
-  @RequirePermissions('songs.manage')
   @ApiOperation({ summary: 'Reemplazar una canción (la crea si no existe)' })
   @ApiData('Song')
   async replace(
@@ -106,7 +102,6 @@ export class SongsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequirePermissions('songs.manage')
   @ApiOperation({ summary: 'Borrar una canción' })
   remove(
     @CurrentUser() user: AuthenticatedUser,

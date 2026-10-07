@@ -3,7 +3,6 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import type {
   ClientPlatform,
-  MemberRole,
   SessionRevokedReason,
 } from '../../generated/prisma/client.js';
 
@@ -47,7 +46,7 @@ export class AuthRepository {
     return (await this.prisma.user.count({ where: { email } })) > 0;
   }
 
-  /** Iglesia, usuario y membresia de dueno, todo o nada. */
+  /** Iglesia y su cuenta, todo o nada. */
   createAccount(account: NewAccount) {
     return this.prisma.$transaction(async (tx) => {
       const church = await tx.church.create({
@@ -59,54 +58,18 @@ export class AuthRepository {
           fullName: account.fullName,
           passwordHash: account.passwordHash,
           lastLoginAt: new Date(),
-          lastChurchId: church.id,
+          churchId: church.id,
         },
       });
-      await tx.churchMember.create({
-        data: { churchId: church.id, userId: user.id, role: 'OWNER' },
-      });
 
-      return { user, church, role: 'OWNER' as MemberRole };
+      return { user, church };
     });
   }
 
-  /**
-   * La membresia con la que se entra al iniciar sesion: la de la ultima iglesia
-   * usada si sigue activa; si no, la activa mas antigua.
-   */
-  async findPrimaryMembership(userId: string, lastChurchId: string | null) {
-    if (lastChurchId) {
-      const last = await this.prisma.churchMember.findFirst({
-        where: { userId, churchId: lastChurchId, isActive: true },
-      });
-      if (last) return last;
-    }
-
-    return this.prisma.churchMember.findFirst({
-      where: { userId, isActive: true },
-      orderBy: { createdAt: 'asc' },
-    });
-  }
-
-  /** Membresias activas con el nombre de la iglesia, para `churches` de la sesion. */
-  findActiveMemberships(userId: string) {
-    return this.prisma.churchMember.findMany({
-      where: { userId, isActive: true },
-      select: { role: true, church: { select: { id: true, name: true } } },
-    });
-  }
-
-  findMembership(userId: string, churchId: string) {
-    return this.prisma.churchMember.findUnique({
-      where: { churchId_userId: { churchId, userId } },
-    });
-  }
-
-  /** Marca el login y recuerda la iglesia para el proximo `sign-in`. */
-  async touchLastLogin(userId: string, churchId: string): Promise<void> {
+  async touchLastLogin(userId: string): Promise<void> {
     await this.prisma.user.update({
       where: { id: userId },
-      data: { lastLoginAt: new Date(), lastChurchId: churchId },
+      data: { lastLoginAt: new Date() },
     });
   }
 
@@ -139,31 +102,23 @@ export class AuthRepository {
 
   /**
    * Lo que el guard comprueba en cada peticion, en una sola consulta: la sesion
-   * viva (no revocada, sin caducar), apuntando a la iglesia del token, con el
-   * usuario activo y su membresia activa en esa iglesia. Devuelve el rol
-   * vigente o null.
-   *
-   * El rol se lee de la base y no del token: asi quitar o degradar a alguien
-   * corta su acceso en el acto, no a los 15 minutos.
+   * viva (no revocada, sin caducar), apuntando a la iglesia del token y con la
+   * cuenta activa. Cerrar sesion o restablecer la contrasena corta el acceso en
+   * el acto, no a los 15 minutos.
    */
-  async findActiveSessionRole(
-    sessionId: string,
-    churchId: string,
-  ): Promise<MemberRole | null> {
-    const rows = await this.prisma.$queryRaw<{ role: MemberRole }[]>`
-      SELECT m.role::text AS role
+  async isSessionActive(sessionId: string, churchId: string): Promise<boolean> {
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT s.id
       FROM sessions s
       JOIN users u ON u.id = s.user_id
-      JOIN church_members m ON m.church_id = s.church_id AND m.user_id = s.user_id
       WHERE s.id = ${sessionId}
         AND s.church_id = ${churchId}
         AND s.revoked_at IS NULL
         AND s.expires_at > now()
         AND u.is_active
-        AND m.is_active
     `;
 
-    return rows[0]?.role ?? null;
+    return rows.length > 0;
   }
 
   /**
@@ -222,39 +177,12 @@ export class AuthRepository {
     return count === 1;
   }
 
-  /** Sesiones abiertas del usuario en todas sus iglesias, la mas reciente primero. */
+  /** Sesiones abiertas del usuario, la mas reciente primero. */
   listActiveSessions(userId: string) {
     return this.prisma.session.findMany({
       where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
       orderBy: { lastUsedAt: 'desc' },
     });
-  }
-
-  /**
-   * Lleva la sesion a otra iglesia y rota el refresh token en el mismo paso:
-   * el par anterior apuntaba a la iglesia vieja y deja de servir.
-   */
-  async switchSessionChurch(
-    sessionId: string,
-    userId: string,
-    churchId: string,
-  ): Promise<void> {
-    const now = new Date();
-    await this.prisma.$transaction([
-      this.prisma.session.update({
-        where: { id: sessionId },
-        data: {
-          churchId,
-          refreshGeneration: { increment: 1 },
-          rotatedAt: now,
-          lastUsedAt: now,
-        },
-      }),
-      this.prisma.user.update({
-        where: { id: userId },
-        data: { lastChurchId: churchId },
-      }),
-    ]);
   }
 
   /**

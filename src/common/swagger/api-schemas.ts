@@ -21,7 +21,6 @@ const uuid = str({ format: 'uuid' });
 const int = (extra: SchemaObject = {}): SchemaObject => ({ type: 'integer', ...extra });
 const bool: SchemaObject = { type: 'boolean' };
 const array = (items: Schema): SchemaObject => ({ type: 'array', items });
-const role = str({ enum: ['owner', 'admin', 'operator'] });
 
 function object(properties: Record<string, Schema>): SchemaObject {
   return { type: 'object', properties, required: Object.keys(properties) };
@@ -30,9 +29,6 @@ function object(properties: Record<string, Schema>): SchemaObject {
 const sessionView = object({
   user: object({ id: uuid, email: str({ format: 'email' }), fullName: str() }),
   church: object({ id: uuid, name: str(), timezone: str({ example: 'America/Lima' }) }),
-  role,
-  permissions: array(str({ example: 'songs.manage' })),
-  churches: array(object({ id: uuid, name: str(), role })),
   session: object({
     id: uuid,
     platform: str({ enum: ['web', 'ios', 'windows'] }),
@@ -186,29 +182,6 @@ export const API_SCHEMAS: Record<string, SchemaObject> = {
     isCurrent: bool,
   }),
   Church: church,
-  Member: object({
-    id: uuid,
-    user: object({ id: uuid, email: str(), fullName: str() }),
-    role,
-    joinedAt: date,
-    isCurrentUser: bool,
-  }),
-  Invitation: object({
-    id: uuid,
-    email: str(),
-    role,
-    invitedBy: object({ id: uuid, fullName: str() }),
-    expiresAt: date,
-    createdAt: date,
-  }),
-  InvitationPreview: object({
-    churchName: str(),
-    email: str(),
-    role,
-    invitedByName: str(),
-    expiresAt: date,
-    hasAccount: bool,
-  }),
   Person: person,
   ServiceType: serviceType,
   Song: song,

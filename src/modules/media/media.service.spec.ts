@@ -12,7 +12,6 @@ const user: AuthenticatedUser = {
   userId: 'u-1',
   churchId: 'church-1',
   sessionId: 's-1',
-  role: 'admin',
 };
 const upload = (overrides: Partial<CreateUploadInput> = {}): CreateUploadInput => ({
   kind: 'image',

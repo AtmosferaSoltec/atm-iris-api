@@ -15,7 +15,6 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { RequirePermissions } from '../../common/decorators/require-permissions.decorator.js';
 import type { Paginated } from '../../common/dto/pagination.schema.js';
 import { ApiData, ApiPaginated } from '../../common/swagger/api-schemas.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
@@ -40,7 +39,6 @@ export class MediaController {
   constructor(private readonly media: MediaService) {}
 
   @Post('uploads')
-  @RequirePermissions('media.manage')
   @ApiOperation({
     summary: 'Pedir una URL firmada para subir un archivo (valida tipo, tamaño y cuota)',
   })
@@ -53,7 +51,6 @@ export class MediaController {
   }
 
   @Post()
-  @RequirePermissions('media.manage')
   @ApiOperation({ summary: 'Confirmar una subida y crear el archivo' })
   @ApiData('MediaAsset', { status: 201 })
   async confirm(
@@ -97,7 +94,6 @@ export class MediaController {
   }
 
   @Patch(':id')
-  @RequirePermissions('media.manage')
   @ApiOperation({ summary: 'Cambiar título, descripción o si es fondo' })
   @ApiData('MediaAsset')
   update(
@@ -110,7 +106,6 @@ export class MediaController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequirePermissions('media.manage')
   @ApiOperation({ summary: 'Borrar un archivo (libera la cuota)' })
   remove(
     @CurrentUser() user: AuthenticatedUser,

@@ -6,12 +6,10 @@ import type { Env } from '../../config/env.schema.js';
 
 import {
   MailPort,
-  type InvitationMail,
   type PasswordChangedMail,
   type PasswordResetCodeMail,
 } from './mail.port.js';
 import { renderTemplate } from './render-template.js';
-import { INVITATION_HTML } from './templates/invitation.generated.js';
 import { PASSWORD_CHANGED_HTML } from './templates/password-changed.generated.js';
 import { PASSWORD_RESET_HTML } from './templates/password-reset.generated.js';
 
@@ -80,34 +78,6 @@ export class ResendMailService extends MailPort {
     });
 
     this.logger.log(`Aviso de contrasena cambiada enviado (id ${id})`);
-  }
-
-  async sendInvitation(input: InvitationMail): Promise<void> {
-    const id = await this.send({
-      to: input.to,
-      subject: `${input.invitedByName} te invitó a ${input.churchName} en Iris`,
-      html: renderTemplate(INVITATION_HTML, {
-        invitedByName: input.invitedByName,
-        churchName: input.churchName,
-        roleLabel: input.roleLabel,
-        acceptUrl: input.acceptUrl,
-        expiresOn: input.expiresOn,
-      }),
-      text: [
-        'Hola,',
-        '',
-        `${input.invitedByName} te invitó a ${input.churchName} en Iris como ${input.roleLabel}.`,
-        '',
-        `Acepta la invitación aquí: ${input.acceptUrl}`,
-        '',
-        `La invitación vence el ${input.expiresOn}.`,
-        '',
-        'Si no esperabas esta invitación, ignora este correo.',
-      ].join('\n'),
-    });
-
-    // Sin el enlace: lleva el token y el log no es lugar para el.
-    this.logger.log(`Invitacion enviada (id ${id})`);
   }
 
   private async send(message: Message): Promise<string | undefined> {

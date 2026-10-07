@@ -30,11 +30,7 @@ import {
 import { hash } from '@node-rs/argon2';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-import {
-  PrismaClient,
-  type MemberRole,
-  type Prisma,
-} from '../src/generated/prisma/client.js';
+import { PrismaClient, type Prisma } from '../src/generated/prisma/client.js';
 import { objectKeyFor } from '../src/modules/media/media.keys.js';
 import { nameKey, searchText } from '../src/shared/utils/text.js';
 
@@ -187,30 +183,27 @@ async function lockChurch(tx: Tx, churchId: string): Promise<void> {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`iris_sync:${churchId}`}, 0))`;
 }
 
-async function ensureUser(email: string, fullName: string, passwordHash: string) {
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) return existing;
-  console.log(`  + usuario ${email}`);
-  return prisma.user.create({ data: { email, fullName, passwordHash } });
-}
-
-async function ensureMembership(churchId: string, userId: string, role: MemberRole) {
-  await prisma.churchMember.upsert({
-    where: { churchId_userId: { churchId, userId } },
-    create: { churchId, userId, role },
-    update: {},
-  });
-}
-
-/** La iglesia con ese nombre donde ese usuario tiene membresia, o una nueva. */
-async function ensureChurch(name: string, ownerId: string) {
-  const membership = await prisma.churchMember.findFirst({
-    where: { userId: ownerId, church: { name } },
+/** La cuenta de una iglesia: si no existe, crea la iglesia y la cuenta juntas. */
+async function ensureAccount(
+  churchName: string,
+  email: string,
+  fullName: string,
+  passwordHash: string,
+) {
+  const existing = await prisma.user.findUnique({
+    where: { email },
     include: { church: true },
   });
-  if (membership) return membership.church;
-  console.log(`  + iglesia ${name}`);
-  return prisma.church.create({ data: { name, timezone: 'America/Lima' } });
+  if (existing) return existing;
+
+  console.log(`  + iglesia ${churchName} y cuenta ${email}`);
+  const church = await prisma.church.create({
+    data: { name: churchName, timezone: 'America/Lima' },
+  });
+  return prisma.user.create({
+    data: { email, fullName, passwordHash, churchId: church.id },
+    include: { church: true },
+  });
 }
 
 /** Domingos anteriores a hoy, a las 10:00 de Lima (UTC-5, sin horario de verano). */
@@ -439,25 +432,21 @@ try {
   console.log('Seed de desarrollo:');
   const passwordHash = await hash(PASSWORD);
 
-  const pastor = await ensureUser('pastor@vidanueva.org', 'Daniel Ruiz', passwordHash);
-  const admin = await ensureUser('admin@vidanueva.org', 'Ana Torres', passwordHash);
-  const operator = await ensureUser('operador@vidanueva.org', 'Carlos Pérez', passwordHash);
-  const sionOwner = await ensureUser('pastor@montesion.org', 'Samuel Vega', passwordHash);
+  const pastor = await ensureAccount(
+    'Iglesia Vida Nueva',
+    'pastor@vidanueva.org',
+    'Daniel Ruiz',
+    passwordHash,
+  );
+  const vidaNueva = pastor.church;
 
-  const vidaNueva = await ensureChurch('Iglesia Vida Nueva', pastor.id);
-  await ensureMembership(vidaNueva.id, pastor.id, 'OWNER');
-  await ensureMembership(vidaNueva.id, admin.id, 'ADMIN');
-  await ensureMembership(vidaNueva.id, operator.id, 'OPERATOR');
-
-  // Monte Sion tiene su propio dueno: una iglesia nunca queda sin `owner`.
-  const monteSion = await ensureChurch('Iglesia Monte Sion', sionOwner.id);
-  await ensureMembership(monteSion.id, sionOwner.id, 'OWNER');
-  await ensureMembership(monteSion.id, pastor.id, 'ADMIN');
-
-  // Que `sign-in` del pastor entre a Vida Nueva la primera vez.
-  if (!pastor.lastChurchId) {
-    await prisma.user.update({ where: { id: pastor.id }, data: { lastChurchId: vidaNueva.id } });
-  }
+  // Una segunda iglesia con su propia cuenta, para probar que los datos no se mezclan.
+  await ensureAccount(
+    'Iglesia Monte Sion',
+    'pastor@montesion.org',
+    'Samuel Vega',
+    passwordHash,
+  );
 
   await seedContent(vidaNueva.id);
   await seedBackgrounds(vidaNueva.id, pastor.id);
@@ -470,8 +459,8 @@ try {
   }
 
   console.log(
-    `Listo. Cuentas: pastor@vidanueva.org (owner; admin en Monte Sion), admin@vidanueva.org, ` +
-      `operador@vidanueva.org, pastor@montesion.org. Contraseña: ${PASSWORD}`,
+    `Listo. Cuentas: pastor@vidanueva.org (Vida Nueva) y pastor@montesion.org ` +
+      `(Monte Sion). Contraseña: ${PASSWORD}`,
   );
 } finally {
   await prisma.$disconnect();

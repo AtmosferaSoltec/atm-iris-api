@@ -48,7 +48,7 @@ function sessionRow(
       isActive: true,
       lastLoginAt: null,
       passwordChangedAt: null,
-      lastChurchId: 'church-1',
+      churchId: 'church-1',
       createdAt: now,
       updatedAt: now,
     },
@@ -73,13 +73,6 @@ function setup() {
     findUserByEmail: vi.fn(),
     emailExists: vi.fn(),
     createAccount: vi.fn(),
-    findPrimaryMembership: vi.fn(),
-    findActiveMemberships: vi.fn().mockResolvedValue([
-      { role: 'OWNER', church: { id: 'church-1', name: 'Iglesia Vida Nueva' } },
-    ]),
-    findMembership: vi
-      .fn()
-      .mockResolvedValue({ role: 'OWNER', isActive: true }),
     touchLastLogin: vi.fn(),
     createSession: vi.fn(),
     findSession: vi.fn(),
@@ -170,7 +163,7 @@ describe('AuthService', () => {
       expect(Math.round(days)).toBe(60);
       expect(platform).toBe('IOS');
 
-      expect(result.role).toBe('owner');
+      expect(result.church.name).toBe('Iglesia Vida Nueva');
       expect(ctx.refreshTokens.parse(result.refreshToken)).toEqual({
         sessionId: 'session-1',
         generation: 0,

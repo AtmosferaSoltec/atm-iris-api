@@ -1,6 +1,3 @@
-/** Rol de una persona dentro de una iglesia. Viaja en minusculas. */
-export type ChurchRole = 'owner' | 'admin' | 'operator';
-
 export type ClientPlatformName = 'web' | 'ios' | 'windows';
 
 /** Lo que viaja firmado dentro del access token. */
@@ -10,7 +7,6 @@ export type AccessTokenPayload = {
   churchId: string;
   /** Id de la sesion: el guard comprueba que siga viva. */
   sid: string;
-  role: ChurchRole;
   /** Distingue el access token de cualquier otro JWT firmado con el secreto. */
   typ: 'access';
 };
@@ -20,7 +16,6 @@ export type AuthenticatedUser = {
   userId: string;
   churchId: string;
   sessionId: string;
-  role: ChurchRole;
 };
 
 /** Datos del dispositivo y la red, para nombrar y rastrear la sesion. */
@@ -29,18 +24,10 @@ export type RequestOrigin = {
   userAgent?: string;
 };
 
-/** Una membresia activa, para el selector de iglesia. */
-export type ChurchSummary = { id: string; name: string; role: ChurchRole };
-
 /** Respuesta de `GET /auth/me` (contrato §4). */
 export type SessionView = {
   user: { id: string; email: string; fullName: string };
   church: { id: string; name: string; timezone: string };
-  role: ChurchRole;
-  /** Ya resueltos para el rol: los clientes deciden con esto, nunca con el rol. */
-  permissions: string[];
-  /** Todas las membresias activas, ordenadas por nombre. */
-  churches: ChurchSummary[];
   session: {
     id: string;
     platform: ClientPlatformName;

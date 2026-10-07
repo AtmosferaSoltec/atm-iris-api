@@ -2,7 +2,6 @@ import { Body, Controller, Get, Patch, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { RequirePermissions } from '../../common/decorators/require-permissions.decorator.js';
 import { ApiData } from '../../common/swagger/api-schemas.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
@@ -29,7 +28,6 @@ export class ChurchController {
   }
 
   @Patch()
-  @RequirePermissions('church.manage')
   @ApiOperation({ summary: 'Cambiar el nombre o la zona horaria' })
   @ApiData('Church')
   update(
@@ -40,7 +38,6 @@ export class ChurchController {
   }
 
   @Put('modules')
-  @RequirePermissions('modules.manage')
   @ApiOperation({ summary: 'Encender o apagar Biblia, Multimedia y Control de tiempo' })
   @ApiData('Church')
   setModules(

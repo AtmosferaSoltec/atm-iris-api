@@ -10,14 +10,10 @@ fechas `timestamptz(3)` en UTC.
 
 ```mermaid
 erDiagram
-  churches ||--o{ church_members : "tiene"
-  users ||--o{ church_members : "pertenece"
+  churches ||--|| users : "su cuenta"
   users ||--o{ sessions : "abre"
   churches ||--o{ sessions : "entra a"
   users ||--o{ password_reset_codes : "pide"
-  churches ||--o{ invitations : "invita"
-  users ||--o{ invitations : "envía"
-  churches |o--o{ users : "última usada"
   churches ||--o{ people : "tiene"
   churches ||--o{ service_types : "tiene"
   service_types ||--o{ block_templates : "bloques"
@@ -166,14 +162,7 @@ erDiagram
     varchar password_hash
     varchar full_name
     bool is_active
-    text last_church_id FK
-  }
-  church_members {
-    text id PK
     text church_id FK
-    text user_id FK
-    member_role role
-    bool is_active
   }
   sessions {
     text id PK
@@ -182,17 +171,6 @@ erDiagram
     client_platform platform
     int refresh_generation
     timestamptz expires_at
-    timestamptz revoked_at
-  }
-  invitations {
-    text id PK
-    text church_id FK
-    varchar email
-    member_role role
-    varchar token_hash UK
-    text invited_by_user_id FK
-    timestamptz expires_at
-    timestamptz accepted_at
     timestamptz revoked_at
   }
   password_reset_codes {
@@ -209,10 +187,8 @@ erDiagram
 | Tabla | Lo no obvio |
 |---|---|
 | `churches` | El tenant. Todo el contenido cuelga de aquí. `timezone` (IANA, por defecto `America/Lima`) define "hoy" y los horarios. Lleva `sync_version` porque el feed de las consolas informa cambios de nombre, zona y módulos |
-| `users` | Global: un usuario entra a varias iglesias por su membresía. `email` siempre en minúsculas y recortado. `last_church_id` (`ON DELETE SET NULL`) es la iglesia a la que entra `sign-in` |
-| `church_members` | Único `(church_id, user_id)`. Rol `OWNER` / `ADMIN` / `OPERATOR` (los permisos de cada uno están en `src/common/constants/permissions.ts`). Quitar a alguien pone `is_active = false`; aceptar otra invitación la reactiva |
-| `sessions` | Una por dispositivo. El refresh token **no** se guarda: es `<id>.<generación>.<HMAC>` y la tabla solo guarda `refresh_generation`. `expires_at` se corre 60 días en cada refresh. `church_id` cambia con `switch-church`. `revoked_reason` incluye `MEMBER_REMOVED` |
-| `invitations` | El token del enlace (32 bytes base64url) no se guarda: solo su SHA-256 en `token_hash`. Vence a los 7 días. Único **parcial** `(church_id, email) WHERE accepted_at IS NULL AND revoked_at IS NULL`: una sola pendiente por correo; reinvitar revoca la anterior |
+| `users` | La cuenta de una iglesia: `church_id` (`ON DELETE CASCADE`) la ata a una sola iglesia y no hay roles ni equipo. `email` siempre en minúsculas y recortado |
+| `sessions` | Una por dispositivo. El refresh token **no** se guarda: es `<id>.<generación>.<HMAC>` y la tabla solo guarda `refresh_generation`. `expires_at` se corre 60 días en cada refresh. `church_id` es siempre la iglesia de la cuenta. `revoked_reason` es `SIGN_OUT`, `SIGN_OUT_ALL`, `PASSWORD_RESET` o `TOKEN_REUSE` |
 | `password_reset_codes` | El código se guarda hasheado (argon2). Máximo 5 intentos y 3 envíos por día por usuario |
 
 ## Contenido de la iglesia (fase 03)

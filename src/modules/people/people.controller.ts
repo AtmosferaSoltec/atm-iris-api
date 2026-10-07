@@ -14,7 +14,6 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { RequirePermissions } from '../../common/decorators/require-permissions.decorator.js';
 import { ApiData } from '../../common/swagger/api-schemas.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
@@ -41,7 +40,6 @@ export class PeopleController {
   }
 
   @Post()
-  @RequirePermissions('people.manage')
   @ApiOperation({
     summary: 'Crear una persona (201; 200 si el id ya existía en la iglesia)',
   })
@@ -57,7 +55,6 @@ export class PeopleController {
   }
 
   @Patch(':id')
-  @RequirePermissions('people.manage')
   @ApiOperation({ summary: 'Renombrar una persona' })
   @ApiData('Person')
   rename(
@@ -70,7 +67,6 @@ export class PeopleController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequirePermissions('people.manage')
   @ApiOperation({
     summary: 'Borrar una persona (la quita como responsable de las plantillas)',
   })

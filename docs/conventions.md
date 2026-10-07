@@ -9,9 +9,7 @@ El mismo nombre en la base, el API, la web y las apps.
 | Español (pantalla) | Inglés (código) | Notas |
 |---|---|---|
 | Iglesia | `church` | El tenant. Todo cuelga de una iglesia |
-| Responsable / dueño | `owner` | Rol de quien crea la cuenta |
-| Miembro (del equipo) | `member` | Membresía de un usuario en una iglesia. Roles: `owner` (dueño), `admin` (administrador), `operator` (operador) |
-| Invitación | `invitation` | Correo con enlace para sumarse al equipo |
+| Cuenta | `user` | La cuenta de una iglesia (correo y contraseña). No hay roles ni equipo |
 | Sesión | `session` | Una por dispositivo |
 | Consola | `console` | La app de iPad o Windows que proyecta |
 | Canción / letra | `song` | Se proyecta por secciones |

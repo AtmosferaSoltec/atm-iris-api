@@ -24,16 +24,6 @@ datasource db {
 // Enums
 // ===========================================================================
 
-/// Roles fijos de la v1. Los permisos de cada uno viven en
-/// src/common/constants/permissions.ts, no en tablas.
-enum MemberRole {
-  OWNER
-  ADMIN
-  OPERATOR
-
-  @@map("member_role")
-}
-
 /// Desde donde se abrio la sesion. Sirve para nombrar el dispositivo en la
 /// lista de sesiones y para no confundir una consola con el navegador.
 enum ClientPlatform {
@@ -74,8 +64,6 @@ enum SessionRevokedReason {
   PASSWORD_RESET
   /// Llego un refresh token ya rotado: alguien mas tiene una copia.
   TOKEN_REUSE
-  /// Lo quitaron del equipo de la iglesia de esta sesion.
-  MEMBER_REMOVED
 
   @@map("session_revoked_reason")
 }
@@ -105,23 +93,22 @@ model Church {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  members        ChurchMember[]
+  users          User[]
   sessions       Session[]
-  invitations    Invitation[]
   people         Person[]
   serviceTypes   ServiceType[]
   songs          Song[]
   mediaUploads   MediaUpload[]
   mediaAssets    MediaAsset[]
   serviceRecords ServiceRecord[]
-  /// Usuarios que entraron aqui la ultima vez.
-  lastUsers      User[]          @relation("UserLastChurch")
 
   @@index([syncVersion])
   @@map("churches")
 }
 
-/// Usuario global: entra a cada iglesia por su membresia.
+/// La cuenta de una iglesia. Cada cuenta pertenece a una sola iglesia y la
+/// maneja entera: no hay roles ni equipo. La misma cuenta entra desde el iPad,
+/// la web y Windows.
 model User {
   id                String    @id @default(uuid(7))
   /// Siempre en minusculas y sin espacios: el unico sirve como identidad.
@@ -131,37 +118,17 @@ model User {
   isActive          Boolean   @default(true) @map("is_active")
   lastLoginAt       DateTime? @map("last_login_at") @db.Timestamptz(3)
   passwordChangedAt DateTime? @map("password_changed_at") @db.Timestamptz(3)
-  /// La iglesia a la que entra `sign-in`: la ultima usada. Si ya no es una
-  /// membresia activa, se entra a la membresia activa mas antigua.
-  lastChurchId      String?   @map("last_church_id")
+  churchId          String    @map("church_id")
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  lastChurch         Church?             @relation("UserLastChurch", fields: [lastChurchId], references: [id], onDelete: SetNull)
-  memberships        ChurchMember[]
+  church             Church              @relation(fields: [churchId], references: [id], onDelete: Cascade)
   sessions           Session[]
   passwordResetCodes PasswordResetCode[]
-  sentInvitations    Invitation[]
   mediaUploads       MediaUpload[]
 
+  @@index([churchId])
   @@map("users")
-}
-
-model ChurchMember {
-  id        String     @id @default(uuid(7))
-  churchId  String     @map("church_id")
-  userId    String     @map("user_id")
-  role      MemberRole @default(OPERATOR)
-  isActive  Boolean    @default(true) @map("is_active")
-  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
-
-  church Church @relation(fields: [churchId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([churchId, userId])
-  @@index([userId])
-  @@map("church_members")
 }
 
 /// Una sesion por dispositivo. El refresh token no se guarda: se firma con
@@ -215,33 +182,6 @@ model PasswordResetCode {
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("password_reset_codes")
-}
-
-/// Invitacion por correo a una iglesia. El token (32 bytes, base64url) solo
-/// viaja en el enlace del correo; aqui se guarda su SHA-256, asi una fuga de la
-/// tabla no deja aceptar ninguna invitacion.
-model Invitation {
-  id              String     @id @default(uuid(7))
-  churchId        String     @map("church_id")
-  /// En minusculas, como `users.email`.
-  email           String     @db.VarChar(254)
-  role            MemberRole
-  /// SHA-256 en hex del token del enlace.
-  tokenHash       String     @unique @map("token_hash") @db.VarChar(64)
-  invitedByUserId String     @map("invited_by_user_id")
-  expiresAt       DateTime   @map("expires_at") @db.Timestamptz(3)
-  acceptedAt      DateTime?  @map("accepted_at") @db.Timestamptz(3)
-  /// Revocada a mano o reemplazada al reinvitar al mismo correo.
-  revokedAt       DateTime?  @map("revoked_at") @db.Timestamptz(3)
-  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-
-  church    Church @relation(fields: [churchId], references: [id], onDelete: Cascade)
-  invitedBy User   @relation(fields: [invitedByUserId], references: [id], onDelete: Cascade)
-
-  /// Una sola invitacion pendiente por correo e iglesia.
-  @@unique([churchId, email], where: raw("accepted_at IS NULL AND revoked_at IS NULL"))
-  @@index([churchId])
-  @@map("invitations")
 }
 
 // ===========================================================================

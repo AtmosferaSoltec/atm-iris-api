@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -12,9 +11,6 @@ import { hash, verify } from '@node-rs/argon2';
 
 import { API_ERROR_CODES } from '../../common/constants/error-codes.js';
 import type { Env } from '../../config/env.schema.js';
-import { permissionsOf } from '../../common/constants/permissions.js';
-import type { MemberRole } from '../../generated/prisma/client.js';
-import { byName } from '../../shared/utils/text.js';
 import { MailPort } from '../../integrations/mail/mail.port.js';
 import {
   REFRESH_REUSE_GRACE_SECONDS,
@@ -22,7 +18,7 @@ import {
   RESET_MAX_REQUESTS_PER_DAY,
   RESET_MAX_VERIFICATION_ATTEMPTS,
 } from './auth.constants.js';
-import { toDbPlatform, toPlatform, toRole } from './auth.mapper.js';
+import { toDbPlatform, toPlatform } from './auth.mapper.js';
 import { AuthRepository, type SessionWithAccount } from './auth.repository.js';
 import type {
   AuthenticatedUser,
@@ -60,7 +56,7 @@ export class AuthService {
 
   /* ---------------------------------------------------------- Cuenta y login */
 
-  /** Crea la iglesia, su dueno y la primera sesion. */
+  /** Crea la iglesia, su cuenta y la primera sesion. */
   async signUp(input: SignUpInput, origin: RequestOrigin): Promise<AuthResult> {
     // Se pregunta antes para dar un mensaje claro; el indice unico cubre la
     // carrera de dos registros simultaneos (PrismaExceptionFilter → 409).
@@ -100,20 +96,9 @@ export class AuthService {
       });
     }
 
-    const membership = await this.repository.findPrimaryMembership(
-      user.id,
-      user.lastChurchId,
-    );
-    if (!membership) {
-      throw new ForbiddenException({
-        code: API_ERROR_CODES.NO_CHURCH_ACCESS,
-        message: 'Tu cuenta no tiene acceso a ninguna iglesia.',
-      });
-    }
+    await this.repository.touchLastLogin(user.id);
 
-    await this.repository.touchLastLogin(user.id, membership.churchId);
-
-    return this.openSession(user.id, membership.churchId, input.client, origin);
+    return this.openSession(user.id, user.churchId, input.client, origin);
   }
 
   /**
@@ -172,45 +157,12 @@ export class AuthService {
 
   async getSession(user: AuthenticatedUser): Promise<SessionView> {
     const session = await this.repository.findSession(user.sessionId);
-    const membership = await this.repository.findMembership(
-      user.userId,
-      user.churchId,
-    );
-    if (!session || !membership?.isActive) throw this.invalidRefreshToken();
+    if (!session) throw this.invalidRefreshToken();
 
-    return this.toView(session, membership.role);
+    return this.toView(session);
   }
 
   /* ----------------------------------------------------- Cuenta y dispositivos */
-
-  /**
-   * Lleva esta misma sesion a otra iglesia del usuario y entrega tokens nuevos.
-   * El par anterior queda invalido: su access token apunta a la iglesia vieja y
-   * el guard lo rechaza.
-   */
-  async switchChurch(
-    user: AuthenticatedUser,
-    churchId: string,
-  ): Promise<AuthResult> {
-    const membership = await this.repository.findMembership(
-      user.userId,
-      churchId,
-    );
-    if (!membership?.isActive) {
-      throw new NotFoundException({
-        code: API_ERROR_CODES.NOT_FOUND,
-        message: 'No perteneces a esa iglesia.',
-      });
-    }
-
-    await this.repository.switchSessionChurch(
-      user.sessionId,
-      user.userId,
-      churchId,
-    );
-
-    return this.issue(await this.reload(user.sessionId));
-  }
 
   async updateProfile(
     user: AuthenticatedUser,
@@ -362,11 +314,8 @@ export class AuthService {
     return { user, record };
   }
 
-  /**
-   * Abre una sesion nueva en una iglesia. Publico porque aceptar una invitacion
-   * (modulo `members`) termina igual que un login.
-   */
-  async openSession(
+  /** Abre una sesion nueva para la cuenta en su iglesia. */
+  private async openSession(
     userId: string,
     churchId: string,
     client: ClientInput,
@@ -387,19 +336,11 @@ export class AuthService {
 
   /** Firma el par de tokens para el estado actual de la sesion. */
   private async issue(session: SessionWithAccount): Promise<AuthResult> {
-    // El rol se relee en cada emision: si cambia, se nota en el proximo refresh.
-    const membership = await this.repository.findMembership(
-      session.userId,
-      session.churchId,
-    );
-    if (!membership?.isActive) throw this.invalidRefreshToken();
-
-    const view = await this.toView(session, membership.role);
+    const view = this.toView(session);
     const access = await this.tokens.signAccessToken({
       sub: session.userId,
       churchId: session.churchId,
       sid: session.id,
-      role: view.role,
     });
 
     return {
@@ -421,15 +362,7 @@ export class AuthService {
   }
 
   /** La unica fabrica de `SessionView`: todos los endpoints pasan por aqui. */
-  private async toView(
-    session: SessionWithAccount,
-    role: MemberRole,
-  ): Promise<SessionView> {
-    const memberships = await this.repository.findActiveMemberships(
-      session.userId,
-    );
-    const churchRole = toRole(role);
-
+  private toView(session: SessionWithAccount): SessionView {
     return {
       user: {
         id: session.user.id,
@@ -441,11 +374,6 @@ export class AuthService {
         name: session.church.name,
         timezone: session.church.timezone,
       },
-      role: churchRole,
-      permissions: permissionsOf(churchRole),
-      churches: memberships
-        .map((m) => ({ id: m.church.id, name: m.church.name, role: toRole(m.role) }))
-        .sort(byName((church) => church.name)),
       session: {
         id: session.id,
         platform: toPlatform(session.platform),

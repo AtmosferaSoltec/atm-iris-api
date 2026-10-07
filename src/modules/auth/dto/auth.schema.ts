@@ -90,14 +90,9 @@ export const changePasswordSchema = z
     message: 'Las contraseñas no coinciden.',
   });
 
-export const switchChurchSchema = z.object({
-  churchId: z.string('Indica la iglesia.').trim().min(1, 'Indica la iglesia.').max(64),
-});
-
 export type ClientInput = z.infer<typeof clientSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
-export type SwitchChurchInput = z.infer<typeof switchChurchSchema>;
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;

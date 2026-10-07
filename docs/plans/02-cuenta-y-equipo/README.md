@@ -1,3 +1,6 @@
+> **Retirado (2026-10-06).** La v1 ya no tiene roles, equipo ni invitaciones: cada iglesia tiene una sola cuenta.
+> Este plan queda como historial. Lo vigente está en `docs/contract/api-v1.md` §3 y en `docs/BACKEND_SPEC.md`.
+
 # 02 · Cuenta y equipo
 
 ## Objetivo

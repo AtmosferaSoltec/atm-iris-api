@@ -14,7 +14,6 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { RequirePermissions } from '../../common/decorators/require-permissions.decorator.js';
 import { ApiData } from '../../common/swagger/api-schemas.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
@@ -51,7 +50,6 @@ export class ServiceTypesController {
   }
 
   @Post()
-  @RequirePermissions('serviceTypes.manage')
   @ApiOperation({
     summary: 'Crear un tipo de servicio (201; 200 si el id ya existía)',
   })
@@ -71,7 +69,6 @@ export class ServiceTypesController {
   }
 
   @Put(':id')
-  @RequirePermissions('serviceTypes.manage')
   @ApiOperation({
     summary: 'Reemplazar un tipo de servicio y sus bloques (lo crea si no existe)',
   })
@@ -93,7 +90,6 @@ export class ServiceTypesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequirePermissions('serviceTypes.manage')
   @ApiOperation({ summary: 'Borrar un tipo de servicio (conserva sus registros)' })
   remove(
     @CurrentUser() user: AuthenticatedUser,

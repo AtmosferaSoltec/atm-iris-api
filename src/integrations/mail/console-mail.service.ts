@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import {
   MailPort,
-  type InvitationMail,
   type PasswordChangedMail,
   type PasswordResetCodeMail,
 } from './mail.port.js';
@@ -26,13 +25,6 @@ export class ConsoleMailService extends MailPort {
   async sendPasswordChanged(input: PasswordChangedMail): Promise<void> {
     this.logger.warn(
       `[correo simulado] Aviso de contraseña cambiada para ${input.to}`,
-    );
-  }
-
-  async sendInvitation(input: InvitationMail): Promise<void> {
-    this.logger.warn(
-      `[correo simulado] Invitación a ${input.churchName} para ${input.to} ` +
-        `como ${input.roleLabel}: ${input.acceptUrl} (vence el ${input.expiresOn})`,
     );
   }
 }

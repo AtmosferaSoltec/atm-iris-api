@@ -1,7 +1,5 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
-import { API_ERROR_CODES } from '../../common/constants/error-codes.js';
-import { hasPermission } from '../../common/constants/permissions.js';
 import {
   pageWindow,
   paginate,
@@ -52,10 +50,9 @@ export class ServiceRecordsService {
 
   /**
    * `PUT /service-records/:id`, el que usa la cola de la consola:
-   * - no existe → lo crea (`records.write`, que ya exige el controlador), 201;
+   * - no existe → lo crea, 201;
    * - existe con el mismo contenido → es un reintento: 200 sin tocar nada;
-   * - existe con otro contenido → reemplazarlo es ajustar tiempos, pide
-   *   `records.manage`, 200;
+   * - existe con otro contenido → lo reemplaza (ajuste de tiempos), 200;
    * - existe en otra iglesia → 409 `ID_CONFLICT`.
    */
   save(
@@ -70,12 +67,6 @@ export class ServiceRecordsService {
 
       if (existing && isSameContent(existing, input)) {
         return { record: toServiceRecord(existing), isNew: false };
-      }
-      if (existing && !hasPermission(user.role, 'records.manage')) {
-        throw new ForbiddenException({
-          code: API_ERROR_CODES.FORBIDDEN,
-          message: 'No tienes permiso para modificar un registro de tiempos ya guardado.',
-        });
       }
 
       await this.validate(user.churchId, id, input, tx);

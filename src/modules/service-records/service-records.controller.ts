@@ -15,7 +15,6 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { RequirePermissions } from '../../common/decorators/require-permissions.decorator.js';
 import type { Paginated } from '../../common/dto/pagination.schema.js';
 import { ApiData, ApiPaginated } from '../../common/swagger/api-schemas.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
@@ -59,7 +58,6 @@ export class ServiceRecordsController {
   }
 
   @Put(':id')
-  @RequirePermissions('records.write')
   @ApiOperation({
     summary:
       'Guardar el registro de un servicio (201 si lo crea, 200 si ya existía; reemplazar uno distinto pide records.manage)',
@@ -77,7 +75,6 @@ export class ServiceRecordsController {
   }
 
   @Patch(':id/blocks/:blockId')
-  @RequirePermissions('records.manage')
   @ApiOperation({ summary: 'Ajustar la duración real o el responsable de un bloque' })
   @ApiData('ServiceRecord')
   updateBlock(
@@ -91,7 +88,6 @@ export class ServiceRecordsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequirePermissions('records.manage')
   @ApiOperation({ summary: 'Borrar un registro de tiempos' })
   remove(
     @CurrentUser() user: AuthenticatedUser,

@@ -40,12 +40,10 @@ El API escucha en todas las interfaces: la PC de Windows llega por `http://<IP-d
 `pnpm db:seed:dev` es idempotente (crea solo lo que falta) y no corre en producción. Contraseña de todas las
 cuentas: `vidanueva123` (o `DEV_SEED_PASSWORD`).
 
-| Cuenta | Rol |
+| Cuenta | Iglesia |
 |---|---|
-| `pastor@vidanueva.org` | `owner` de Iglesia Vida Nueva y `admin` de Iglesia Monte Sion (para probar el cambio de iglesia) |
-| `admin@vidanueva.org` | `admin` de Vida Nueva |
-| `operador@vidanueva.org` | `operator` de Vida Nueva |
-| `pastor@montesion.org` | `owner` de Monte Sion |
+| `pastor@vidanueva.org` | Iglesia Vida Nueva |
+| `pastor@montesion.org` | Iglesia Monte Sion (para probar que los datos no se mezclan) |
 
 Vida Nueva trae 8 personas, 3 tipos de servicio (Culto general con 4 bloques y responsables, Jóvenes, ABC), 6 himnos
 de dominio público, 10 registros de tiempos de los últimos domingos (uno con un bloque omitido y otro ajustado) y, si
@@ -64,7 +62,7 @@ servicio de un solo uso que crea el bucket **privado** `iris-media`. Consola en 
 
 ### Correo
 
-Sin `RESEND_API_KEY` ni `MAIL_FROM`, los correos (código de recuperación, contraseña cambiada, invitaciones) se
+Sin `RESEND_API_KEY` ni `MAIL_FROM`, los correos (código de recuperación, contraseña cambiada) se
 escriben en el log del API. En producción son obligatorias.
 
 ## Scripts
@@ -86,19 +84,18 @@ Verificación completa: `pnpm lint && npx tsc --noEmit -p tsconfig.json && pnpm 
 Todo cuelga de `/api/v1` y es privado (`Authorization: Bearer`) salvo lo marcado como público. El detalle exacto
 (cuerpos, respuestas, códigos de error) está en el [contrato](docs/contract/api-v1.md) y en Swagger.
 
-| Módulo | Rutas | Permiso para escribir |
-|---|---|---|
-| Auth | `POST /auth/sign-up` · `sign-in` · `refresh` · `forgot-password` · `verify-reset-code` · `reset-password` (públicas) · `GET/PATCH /auth/me` · `POST /auth/sign-out` · `sign-out-all` · `change-password` · `switch-church` · `GET /auth/sessions` · `DELETE /auth/sessions/:id` | Sesión |
-| Equipo | `GET /members` · `PATCH/DELETE /members/:id` · `GET/POST /invitations` · `POST /invitations/:id/resend` · `DELETE /invitations/:id` · `GET /invitations/lookup` y `POST /invitations/accept` (públicas) | `members.manage` |
-| Iglesia | `GET/PATCH /church` · `PUT /church/modules` | `church.manage` · `modules.manage` |
-| Personas | `GET/POST /people` · `PATCH/DELETE /people/:id` | `people.manage` |
-| Tipos de servicio | `GET/POST /service-types` · `GET/PUT/DELETE /service-types/:id` | `serviceTypes.manage` |
-| Canciones | `GET/POST /songs` · `POST /songs/import` · `GET/PUT/DELETE /songs/:id` | `songs.manage` |
-| Multimedia | `POST /media/uploads` · `GET/POST /media` · `GET/PATCH/DELETE /media/:id` · `GET /media/:id/download-url` | `media.manage` |
-| Biblia | `GET /bible/translations` · `…/:code/books` · `…/:code/books/:bookId/chapters/:chapter` · `…/:code/download` (gzip, ETag) | — |
-| Tiempos | `GET /service-records` · `GET/PUT/DELETE /service-records/:id` · `PATCH /service-records/:id/blocks/:blockId` | `records.write` (crear) · `records.manage` |
-| Sincronización | `GET /sync/changes?since=&limit=` (consolas) | — |
-| Salud | `GET /health` (pública) | — |
+| Módulo | Rutas |
+|---|---|
+| Auth | `POST /auth/sign-up` · `sign-in` · `refresh` · `forgot-password` · `verify-reset-code` · `reset-password` (públicas) · `GET/PATCH /auth/me` · `POST /auth/sign-out` · `sign-out-all` · `change-password` · `GET /auth/sessions` · `DELETE /auth/sessions/:id` |
+| Iglesia | `GET/PATCH /church` · `PUT /church/modules` |
+| Personas | `GET/POST /people` · `PATCH/DELETE /people/:id` |
+| Tipos de servicio | `GET/POST /service-types` · `GET/PUT/DELETE /service-types/:id` |
+| Canciones | `GET/POST /songs` · `POST /songs/import` · `GET/PUT/DELETE /songs/:id` |
+| Multimedia | `POST /media/uploads` · `GET/POST /media` · `GET/PATCH/DELETE /media/:id` · `GET /media/:id/download-url` |
+| Biblia | `GET /bible/translations` · `…/:code/books` · `…/:code/books/:bookId/chapters/:chapter` · `…/:code/download` (gzip, ETag) |
+| Tiempos | `GET /service-records` · `GET/PUT/DELETE /service-records/:id` · `PATCH /service-records/:id/blocks/:blockId` |
+| Sincronización | `GET /sync/changes?since=&limit=` (consolas) |
+| Salud | `GET /health` (pública) |
 
 Respuestas en `{ data }` (o `{ data, meta }` si están paginadas); errores en
 `{ statusCode, code, message, errors?, timestamp, path }`, con `code` estable en inglés y `message` en español. Cada

@@ -1,16 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AuthenticatedUser, ChurchRole } from '../auth/auth.types.js';
+import type { AuthenticatedUser } from '../auth/auth.types.js';
 import type { ServiceRecordInput } from './dto/service-records.schema.js';
 import type { ServiceRecordsRepository } from './service-records.repository.js';
 import { ServiceRecordsService } from './service-records.service.js';
 
-const user = (role: ChurchRole): AuthenticatedUser => ({
+const user: AuthenticatedUser = {
   userId: 'u-1',
   churchId: 'church-1',
   sessionId: 's-1',
-  role,
-});
+};
 
 const input: ServiceRecordInput = {
   date: new Date('2026-10-04T15:00:00.000Z'),
@@ -79,50 +78,43 @@ describe('ServiceRecordsService · PUT idempotente', () => {
 
   it('no existe → lo crea (201)', async () => {
     ctx.repository.findAnyById.mockResolvedValue(null);
-    const result = await ctx.service.save(user('operator'), 'r-1', input);
+    const result = await ctx.service.save(user, 'r-1', input);
     expect(result.isNew).toBe(true);
     expect(ctx.repository.create).toHaveBeenCalledWith('church-1', 'r-1', input, 's-1', 'tx');
   });
 
-  it('existe igual → reintento: 200 sin escribir, aunque sea un operator', async () => {
+  it('existe igual → reintento: 200 sin escribir', async () => {
     ctx.repository.findAnyById.mockResolvedValue(row());
-    const result = await ctx.service.save(user('operator'), 'r-1', input);
+    const result = await ctx.service.save(user, 'r-1', input);
     expect(result.isNew).toBe(false);
     expect(ctx.repository.create).not.toHaveBeenCalled();
     expect(ctx.repository.replace).not.toHaveBeenCalled();
   });
 
-  it('existe distinto → un operator recibe 403', async () => {
+  it('existe distinto → lo reemplaza (200)', async () => {
     ctx.repository.findAnyById.mockResolvedValue(row('church-1', { actualSeconds: 999 }));
-    await expect(ctx.service.save(user('operator'), 'r-1', input)).rejects.toMatchObject({
-      response: { code: 'FORBIDDEN' },
-    });
-  });
-
-  it('existe distinto → con records.manage lo reemplaza (200)', async () => {
-    ctx.repository.findAnyById.mockResolvedValue(row('church-1', { actualSeconds: 999 }));
-    const result = await ctx.service.save(user('admin'), 'r-1', input);
+    const result = await ctx.service.save(user, 'r-1', input);
     expect(result.isNew).toBe(false);
     expect(ctx.repository.replace).toHaveBeenCalled();
   });
 
   it('un bloque ya ajustado no cuenta como igual al completed reenviado', async () => {
     ctx.repository.findAnyById.mockResolvedValue(row('church-1', { status: 'ADJUSTED' }));
-    await expect(ctx.service.save(user('operator'), 'r-1', input)).rejects.toMatchObject({
-      response: { code: 'FORBIDDEN' },
-    });
+    const result = await ctx.service.save(user, 'r-1', input);
+    expect(result.isNew).toBe(false);
+    expect(ctx.repository.replace).toHaveBeenCalled();
   });
 
   it('existe en otra iglesia → 409 ID_CONFLICT', async () => {
     ctx.repository.findAnyById.mockResolvedValue(row('church-2'));
-    await expect(ctx.service.save(user('owner'), 'r-1', input)).rejects.toMatchObject({
+    await expect(ctx.service.save(user, 'r-1', input)).rejects.toMatchObject({
       response: { code: 'ID_CONFLICT' },
     });
   });
 
   it('borrado → 404', async () => {
     ctx.repository.findAnyById.mockResolvedValue(row('church-1', { deletedAt: new Date() }));
-    await expect(ctx.service.save(user('owner'), 'r-1', input)).rejects.toMatchObject({
+    await expect(ctx.service.save(user, 'r-1', input)).rejects.toMatchObject({
       response: { code: 'NOT_FOUND' },
     });
   });
@@ -130,7 +122,7 @@ describe('ServiceRecordsService · PUT idempotente', () => {
   it('un id de bloque de otro registro → 409 ID_CONFLICT en blocks.0.id', async () => {
     ctx.repository.findAnyById.mockResolvedValue(null);
     ctx.repository.findBlockOwners.mockResolvedValue([{ id: 'b-1', serviceRecordId: 'otro' }]);
-    await expect(ctx.service.save(user('owner'), 'r-1', input)).rejects.toMatchObject({
+    await expect(ctx.service.save(user, 'r-1', input)).rejects.toMatchObject({
       response: { code: 'ID_CONFLICT', errors: { 'blocks.0.id': expect.any(String) } },
     });
   });

@@ -17,18 +17,9 @@ export const API_ERROR_CODES = {
   EMAIL_TAKEN: 'EMAIL_TAKEN',
   /** El refresh token no sirve: vencio, se revoco o se reuso. Hay que iniciar sesion. */
   INVALID_REFRESH_TOKEN: 'INVALID_REFRESH_TOKEN',
-  /** La cuenta no tiene ninguna iglesia activa a la que entrar. */
-  NO_CHURCH_ACCESS: 'NO_CHURCH_ACCESS',
   RESET_CODE_INVALID: 'RESET_CODE_INVALID',
   RESET_LIMIT_REACHED: 'RESET_LIMIT_REACHED',
   INVALID_CURRENT_PASSWORD: 'INVALID_CURRENT_PASSWORD',
-
-  // Equipo
-  /** Quitar o degradar al unico dueno de la iglesia. */
-  LAST_OWNER: 'LAST_OWNER',
-  ALREADY_MEMBER: 'ALREADY_MEMBER',
-  /** Invitacion inexistente, vencida, revocada o ya usada. */
-  INVITATION_INVALID: 'INVITATION_INVALID',
 
   // Contenido de la iglesia
   PERSON_NAME_TAKEN: 'PERSON_NAME_TAKEN',

@@ -6,7 +6,6 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
-import { PermissionsGuard } from './common/guards/permissions.guard.js';
 import {
   RequestIdMiddleware,
   resolveRequestId,
@@ -20,7 +19,6 @@ import { BibleModule } from './modules/bible/bible.module.js';
 import { ChurchModule } from './modules/church/church.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { MediaModule } from './modules/media/media.module.js';
-import { MembersModule } from './modules/members/members.module.js';
 import { PeopleModule } from './modules/people/people.module.js';
 import { ServiceRecordsModule } from './modules/service-records/service-records.module.js';
 import { ServiceTypesModule } from './modules/service-types/service-types.module.js';
@@ -91,7 +89,6 @@ const LOG_LEVEL: Record<string, string> = {
     MailModule,
     StorageModule,
     AuthModule,
-    MembersModule,
     ChurchModule,
     PeopleModule,
     ServiceTypesModule,
@@ -103,11 +100,9 @@ const LOG_LEVEL: Record<string, string> = {
     HealthModule,
   ],
   providers: [
-    // El orden importa: primero el limite de peticiones, luego la sesion y al
-    // final los permisos, que leen el rol que deja la sesion.
+    // El orden importa: primero el limite de peticiones y luego la sesion.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
 })
 export class AppModule implements NestModule {

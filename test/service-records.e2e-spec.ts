@@ -8,18 +8,15 @@ import {
   authed,
   cleanUp,
   createTestApp,
-  inviteNewMember,
   signUp,
-  type CapturingMail,
 } from './helpers.js';
 
 describe('registros de tiempos (e2e)', () => {
   let app: NestExpressApplication;
-  let mail: CapturingMail;
   let prisma: PrismaService;
 
   beforeAll(async () => {
-    ({ app, mail, prisma } = await createTestApp());
+    ({ app, prisma } = await createTestApp());
   });
 
   afterAll(async () => {
@@ -27,10 +24,9 @@ describe('registros de tiempos (e2e)', () => {
     await app.close();
   });
 
-  it('PUT idempotente, permisos del operator, ajuste y blockCount', async () => {
+  it('PUT idempotente, ajuste y blockCount', async () => {
     const owner = await signUp(app);
     const api = authed(app, owner.accessToken);
-    const operator = authed(app, (await inviteNewMember(app, mail, owner.accessToken, 'operator')).accessToken);
 
     const ana = (await api.post('/people', { name: 'Ana Torres' })).body.data;
     const type = (
@@ -65,19 +61,19 @@ describe('registros de tiempos (e2e)', () => {
       ],
     };
 
-    const created = await operator.put(`/service-records/${id}`, record);
+    const created = await api.put(`/service-records/${id}`, record);
     expect(created.status).toBe(201);
     expect(created.body.data).toMatchObject({ id, date: record.date, serviceTypeName: 'Culto' });
 
-    const retried = await operator.put(`/service-records/${id}`, record);
+    const retried = await api.put(`/service-records/${id}`, record);
     expect(retried.status).toBe(200);
     expect((await api.get('/service-records')).body.meta.total).toBe(1);
 
+    // Con otro contenido, el mismo id reemplaza el registro.
     const changed = { ...record, serviceTypeName: 'Culto dominical' };
-    expect((await operator.put(`/service-records/${id}`, changed)).status).toBe(403);
-    expect(
-      (await operator.patch(`/service-records/${id}/blocks/${blockIds[0]}`, { actualSeconds: 600 })).status,
-    ).toBe(403);
+    const replaced = await api.put(`/service-records/${id}`, changed);
+    expect(replaced.status).toBe(200);
+    expect(replaced.body.data.serviceTypeName).toBe('Culto dominical');
 
     const adjusted = await api.patch(`/service-records/${id}/blocks/${blockIds[0]}`, {
       actualSeconds: 600,

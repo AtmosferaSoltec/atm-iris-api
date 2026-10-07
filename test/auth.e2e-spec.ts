@@ -30,7 +30,7 @@ describe('auth (e2e)', () => {
   });
 
   describe('crear cuenta', () => {
-    it('crea iglesia, dueno y sesion, y /me la devuelve', async () => {
+    it('crea iglesia, cuenta y sesion, y /me la devuelve', async () => {
       const account = await signUp(app, {
         platform: 'windows',
         deviceName: 'PC del templo',
@@ -44,7 +44,6 @@ describe('auth (e2e)', () => {
       expect(me.body.data).toMatchObject({
         user: { email: account.email, fullName: 'Persona de Prueba' },
         church: { name: 'Iglesia de Prueba' },
-        role: 'owner',
         session: { platform: 'windows', deviceName: 'PC del templo' },
       });
     });

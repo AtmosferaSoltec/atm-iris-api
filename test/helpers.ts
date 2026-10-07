@@ -9,7 +9,6 @@ import type { Env } from '../src/config/env.schema.js';
 import { PrismaService } from '../src/database/prisma.service.js';
 import {
   MailPort,
-  type InvitationMail,
   type PasswordChangedMail,
   type PasswordResetCodeMail,
 } from '../src/integrations/mail/mail.port.js';
@@ -18,7 +17,6 @@ import {
 export class CapturingMail extends MailPort {
   readonly resetCodes: PasswordResetCodeMail[] = [];
   readonly passwordChanged: PasswordChangedMail[] = [];
-  readonly invitations: InvitationMail[] = [];
 
   async sendPasswordResetCode(input: PasswordResetCodeMail): Promise<void> {
     this.resetCodes.push(input);
@@ -26,17 +24,6 @@ export class CapturingMail extends MailPort {
 
   async sendPasswordChanged(input: PasswordChangedMail): Promise<void> {
     this.passwordChanged.push(input);
-  }
-
-  async sendInvitation(input: InvitationMail): Promise<void> {
-    this.invitations.push(input);
-  }
-
-  /** El token del enlace de la ultima invitacion enviada a ese correo. */
-  lastInvitationTokenFor(email: string): string {
-    const mail = this.invitations.findLast((entry) => entry.to === email);
-    if (!mail) throw new Error(`No se envio ninguna invitacion a ${email}`);
-    return new URL(mail.acceptUrl).searchParams.get('token')!;
   }
 
   lastCodeFor(email: string): string {
@@ -73,13 +60,10 @@ export const uniqueEmail = (label: string) =>
 export async function cleanUp(prisma: PrismaService): Promise<void> {
   const users = await prisma.user.findMany({
     where: { email: { endsWith: `@${TEST_DOMAIN}` } },
-    include: { memberships: true },
   });
-  const churchIds = users.flatMap((user) =>
-    user.memberships.map((m) => m.churchId),
-  );
+  const churchIds = users.map((user) => user.churchId);
 
-  // Las sesiones, membresias y codigos caen en cascada.
+  // Las sesiones y los codigos caen en cascada.
   await prisma.user.deleteMany({
     where: { id: { in: users.map((u) => u.id) } },
   });
@@ -139,43 +123,6 @@ export function authed(app: NestExpressApplication, token: string) {
       request(server).patch(`/api/v1${path}`).set('Authorization', bearer).send(body),
     delete: (path: string) =>
       request(server).delete(`/api/v1${path}`).set('Authorization', bearer),
-  };
-}
-
-/**
- * Invita un correo nuevo con ese rol y acepta la invitacion como cuenta nueva.
- * Devuelve el `AuthResult` de quien acepto.
- */
-export async function inviteNewMember(
-  app: NestExpressApplication,
-  mail: CapturingMail,
-  ownerToken: string,
-  role: 'owner' | 'admin' | 'operator',
-) {
-  const email = uniqueEmail(role);
-  const invited = await authed(app, ownerToken).post('/invitations', { email, role });
-  if (invited.status !== 201) {
-    throw new Error(`invitar fallo (${invited.status}): ${JSON.stringify(invited.body)}`);
-  }
-
-  const accepted = await request(app.getHttpServer())
-    .post('/api/v1/invitations/accept')
-    .send({
-      token: mail.lastInvitationTokenFor(email),
-      fullName: `Miembro ${role}`,
-      password: PASSWORD,
-      client: { platform: 'ios' },
-    });
-  if (accepted.status !== 200) {
-    throw new Error(`aceptar fallo (${accepted.status}): ${JSON.stringify(accepted.body)}`);
-  }
-
-  return { email, ...accepted.body.data } as {
-    email: string;
-    accessToken: string;
-    refreshToken: string;
-    role: string;
-    church: { id: string };
   };
 }
 

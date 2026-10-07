@@ -34,10 +34,8 @@ import type {
 } from './auth.types.js';
 import {
   changePasswordSchema,
-  switchChurchSchema,
   updateProfileSchema,
   type ChangePasswordInput,
-  type SwitchChurchInput,
   type UpdateProfileInput,
   forgotPasswordSchema,
   refreshSchema,
@@ -159,20 +157,6 @@ export class AuthController {
     @Body(new ZodValidationPipe(changePasswordSchema)) dto: ChangePasswordInput,
   ): Promise<void> {
     return this.auth.changePassword(user, dto);
-  }
-
-  @Post('switch-church')
-  @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Pasar esta sesión a otra iglesia del usuario (tokens nuevos)',
-  })
-  @ApiData('AuthResult')
-  switchChurch(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body(new ZodValidationPipe(switchChurchSchema)) dto: SwitchChurchInput,
-  ): Promise<AuthResult> {
-    return this.auth.switchChurch(user, dto.churchId);
   }
 
   @Get('sessions')

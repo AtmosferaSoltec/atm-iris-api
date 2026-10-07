@@ -22,9 +22,9 @@
 
 | Fase | Alcance | Estado |
 |---|---|---|
-| 00 | Permisos, request id, paginación, `nameKey`, versión de sincronización, borrado suave | ✅ |
+| 00 | Request id, paginación, `nameKey`, versión de sincronización, borrado suave | ✅ |
 | 01 | Crear cuenta, login, refresh con rotación, cerrar sesión, recuperar contraseña, correos | ✅ |
-| 02 | Roles owner/admin/operator, varias iglesias, perfil, contraseña, dispositivos, invitaciones | ✅ |
+| 02 | Perfil, contraseña y dispositivos (sin roles ni equipo) | ✅ |
 | 03 | Ajustes y módulos de la iglesia, personas, tipos de servicio | ✅ |
 | 04 | Canciones: CRUD, búsqueda sin acentos, importación | ✅ |
 | 05 | Multimedia en S3 compatible con URLs firmadas y cuota | ✅ |
@@ -39,26 +39,21 @@
 
 ### 2.1 Cuentas
 
-Una **iglesia** es el espacio de datos (tenant). El usuario es global y entra a cada iglesia por su **membresía**,
-con un rol. El `churchId` sale siempre del token, nunca de la URL ni del cuerpo.
+Una **iglesia** es el espacio de datos (tenant) y tiene **una sola cuenta**: quien entra con ella lo puede todo en
+esa iglesia. No hay roles, equipo ni invitaciones. El `churchId` sale siempre del token, nunca de la URL ni del cuerpo.
 
 ```text
 Church        { id, name, timezone, modules, storageQuota }
-User          { id, email (único, minúsculas), passwordHash, fullName, isActive, lastChurchId? }
-ChurchMember  { id, churchId, userId, role: owner|admin|operator, isActive }
+User          { id, churchId, email (único, minúsculas), passwordHash, fullName, isActive }
 Session       { id, userId, churchId, platform: web|ios|windows, deviceName?, refreshGeneration,
                 lastUsedAt, expiresAt, revokedAt?, revokedReason? }       // una por dispositivo
 PasswordResetCode { id, userId, codeHash, expiresAt, verificationAttempts, usedAt? }
-Invitation    { id, churchId, email, role, tokenHash, invitedBy, expiresAt, acceptedAt?, revokedAt? }
 ```
 
-- **Roles y permisos** (contrato §3): los permisos viven en `src/common/constants/permissions.ts`. `owner` y `admin`
-  tienen los nueve; `operator`, `people.manage` y `records.write`. La API pregunta por permiso, nunca por rol.
-- Solo un `owner` asigna o quita `owner`; un `admin` no toca a un `owner`. La iglesia nunca queda sin dueño activo.
-- `sign-in` entra a la última iglesia usada; `switch-church` mueve la misma sesión a otra iglesia con tokens nuevos.
-- Quitar a alguien del equipo desactiva su membresía y cierra sus sesiones en esa iglesia al instante (el guard
-  comprueba sesión y membresía en cada petición y toma el rol de la base).
-- Invitaciones por correo: vencen a los 7 días; el token solo viaja en el enlace y en la base se guarda su SHA-256.
+- Sin roles ni permisos (contrato §3): cualquier sesión válida puede leer y escribir todo lo de su iglesia.
+- `sign-up` crea la iglesia y su cuenta a la vez; `sign-in` entra a la iglesia de la cuenta.
+- El guard comprueba en cada petición que la sesión siga viva y la cuenta activa: cerrar sesión o restablecer la
+  contraseña corta el acceso al instante.
 
 ### 2.2 Contenido de la iglesia
 
@@ -123,5 +118,5 @@ Plan completo en [`plans/01-login/README.md`](plans/01-login/README.md) y [`plan
 - Una **sesión por dispositivo**. Se puede cerrar una, todas, o ver la lista de dispositivos. Cambiar la contraseña
   cierra las demás; restablecerla las cierra todas.
 - **Recuperar contraseña en 3 pasos**: correo → código de 6 dígitos (15 min, 5 intentos, 3 por día) → contraseña nueva.
-- **Correos** con Resend detrás de `MailPort`: código de recuperación, contraseña cambiada e invitación. Sin
+- **Correos** con Resend detrás de `MailPort`: código de recuperación y contraseña cambiada. Sin
   credenciales, en desarrollo se escriben en el log.

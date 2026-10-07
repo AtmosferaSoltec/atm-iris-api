@@ -8,7 +8,6 @@ import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 
 import type { AuthenticatedUser } from '../../modules/auth/auth.types.js';
-import { toRole } from '../../modules/auth/auth.mapper.js';
 import { AuthRepository } from '../../modules/auth/auth.repository.js';
 import { TokenService } from '../../modules/auth/services/token.service.js';
 import { API_ERROR_CODES } from '../constants/error-codes.js';
@@ -23,11 +22,9 @@ const BEARER = /^Bearer\s+(.+)$/i;
  *
  * Es global: todo esta protegido salvo lo que se marque con `@Public()`.
  *
- * Ademas de la firma, comprueba que la sesion siga viva y que la membresia en
- * la iglesia del token siga activa, y toma el rol vigente de la base. Es una
- * sola consulta por clave primaria y es lo que hace que cerrar sesion,
- * restablecer la contrasena o quitar a alguien del equipo corte el acceso en
- * el acto y no a los 15 minutos.
+ * Ademas de la firma, comprueba que la sesion siga viva y que la cuenta siga
+ * activa. Es una sola consulta y es lo que hace que cerrar sesion o restablecer
+ * la contrasena corte el acceso en el acto y no a los 15 minutos.
  */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -51,17 +48,16 @@ export class JwtAuthGuard implements CanActivate {
     const payload = await this.tokens.verifyAccessToken(token);
     if (!payload) throw this.unauthorized();
 
-    const role = await this.repository.findActiveSessionRole(
+    const isActive = await this.repository.isSessionActive(
       payload.sid,
       payload.churchId,
     );
-    if (!role) throw this.unauthorized();
+    if (!isActive) throw this.unauthorized();
 
     const user: AuthenticatedUser = {
       userId: payload.sub,
       churchId: payload.churchId,
       sessionId: payload.sid,
-      role: toRole(role),
     };
     Object.assign(request, { [REQUEST_USER_KEY]: user });
 

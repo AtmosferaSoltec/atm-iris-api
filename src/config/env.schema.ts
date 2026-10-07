@@ -44,9 +44,6 @@ export const envSchema = z.object({
 
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
 
-  /** Raiz de la web: los enlaces de los correos (invitaciones) apuntan aqui. */
-  WEB_URL: z.url('WEB_URL debe ser una URL').default('http://localhost:3000'),
-
   /** Freno general, por IP. Holgado: una pantalla dispara varias peticiones. */
   THROTTLE_TTL: z.coerce.number().int().positive().default(60),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(300),
