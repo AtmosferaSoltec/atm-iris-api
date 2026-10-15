@@ -167,6 +167,14 @@ const serviceRecord = object({
   updatedAt: date,
 });
 
+const appVersionCheck = object({
+  platform: str({ enum: ['ios', 'windows'] }),
+  latestVersion: str({ example: '1.0.1' }),
+  updateRequired: bool,
+  downloadUrl: nullable(str({ format: 'uri' })),
+  notes: nullable(str()),
+});
+
 const servicePlanItem = object({
   id: uuid,
   kind: str({ enum: ['song', 'media'] }),
@@ -250,6 +258,7 @@ export const API_SCHEMAS: Record<string, SchemaObject> = {
   DownloadUrl: object({ url: str({ format: 'uri' }), expiresAt: date }),
   ServiceRecord: serviceRecord,
   ServicePlanItem: servicePlanItem,
+  AppVersionCheck: appVersionCheck,
   SyncPage: object({
     church: { ...ref('Church'), nullable: true } as Schema,
     changes: object({

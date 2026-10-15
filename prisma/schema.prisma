@@ -437,6 +437,18 @@ model SystemFeature {
   @@map("system_features")
 }
 
+/// Version publicada de cada app, una fila por plataforma (`ios`, `windows`). Las apps la consultan al
+/// abrir (GET /app-version); si son anteriores, muestran un aviso que obliga a actualizar. Se cambia a mano.
+model AppVersion {
+  platform    String   @id @db.VarChar(20)
+  version     String   @db.VarChar(20)
+  downloadUrl String?  @map("download_url") @db.VarChar(300)
+  notes       String?  @db.VarChar(300)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("app_versions")
+}
+
 /// Una traduccion, por codigo: rvr1909 y las que se importen (docs/bible-source.md).
 model BibleTranslation {
   /// "rvr1909".

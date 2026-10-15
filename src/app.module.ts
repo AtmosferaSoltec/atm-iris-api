@@ -18,6 +18,7 @@ import { validateEnv } from './config/env.schema.js';
 import { DatabaseModule } from './database/database.module.js';
 import { MailModule } from './integrations/mail/mail.module.js';
 import { StorageModule } from './integrations/storage/storage.module.js';
+import { AppVersionsModule } from './modules/app-versions/app-versions.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { BibleModule } from './modules/bible/bible.module.js';
 import { ChurchModule } from './modules/church/church.module.js';
@@ -105,6 +106,7 @@ const LOG_LEVEL: Record<string, string> = {
     ServiceRecordsModule,
     ServicePlanModule,
     SyncModule,
+    AppVersionsModule,
     HealthModule,
   ],
   providers: [
