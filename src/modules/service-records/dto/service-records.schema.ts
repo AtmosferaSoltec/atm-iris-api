@@ -24,10 +24,20 @@ const blockRecordSchema = z.object({
     .max(80, 'El nombre tiene como máximo 80 caracteres.')
     .nullable()
     .transform((value) => (value ? value : null)),
-  status: z.enum(['completed', 'skipped'], 'El estado debe ser completed o skipped.'),
+  status: z.enum(
+    ['pending', 'running', 'completed', 'skipped'],
+    'El estado debe ser pending, running, completed o skipped.',
+  ),
+  // Opcionales: una consola anterior no los manda.
+  startedAt: instant('El inicio del bloque debe ser un instante ISO-8601.').nullable().default(null),
+  endedAt: instant('El fin del bloque debe ser un instante ISO-8601.').nullable().default(null),
 });
 
 export const serviceRecordInputSchema = z.object({
+  // Una consola anterior solo guarda al terminar: sin `status`, esta terminado.
+  status: z
+    .enum(['inProgress', 'finished'], 'El estado debe ser inProgress o finished.')
+    .default('finished'),
   date: instant('La fecha debe ser un instante ISO-8601.'),
   serviceTypeId: z.string('Indica el tipo de servicio.').min(1).max(64),
   serviceTypeName: z
@@ -52,6 +62,25 @@ export const serviceRecordInputSchema = z.object({
         seen.add(block.id);
       });
     }),
+}).superRefine((record, ctx) => {
+  // Terminado: solo bloques completados u omitidos. En curso: a lo sumo uno corriendo.
+  let running = 0;
+  record.blocks.forEach((block, index) => {
+    if (record.status === 'finished' && (block.status === 'pending' || block.status === 'running')) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['blocks', index, 'status'],
+        message: 'Un registro terminado solo tiene bloques completed o skipped.',
+      });
+    }
+    if (block.status === 'running' && ++running > 1) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['blocks', index, 'status'],
+        message: 'Solo un bloque puede estar en curso.',
+      });
+    }
+  });
 });
 
 export const recordIdSchema = z.uuid('El id del registro debe ser un UUID.');
@@ -70,6 +99,7 @@ export const listServiceRecordsSchema = createPaginationSchema({ maxLimit: 500 }
     from: instant('`from` debe ser un instante ISO-8601.').optional(),
     to: instant('`to` debe ser un instante ISO-8601.').optional(),
     serviceTypeId: z.string().min(1).max(64).optional(),
+    status: z.enum(['inProgress', 'finished'], '`status` debe ser inProgress o finished.').optional(),
   });
 
 export type ServiceRecordInput = z.infer<typeof serviceRecordInputSchema>;

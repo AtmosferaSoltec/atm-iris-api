@@ -267,7 +267,7 @@ Antes era el equipo (`/members`, `/invitations`). La v1 no tiene equipo, roles n
 ```ts
 type Person = {
   id: string; name: string;
-  blockCount: number;             // bloques dirigidos en registros no borrados, sin contar los omitidos
+  blockCount: number;             // bloques dirigidos en registros no borrados, sin contar omitidos ni pendientes
   createdAt: string; updatedAt: string;
 };
 ```
@@ -515,37 +515,53 @@ type BibleDownload = {
 
 | Método | Ruta | Cuerpo / query | Respuesta | Acceso |
 |---|---|---|---|---|
-| GET | `/service-records` | `?from=&to=&serviceTypeId=&page=&limit=` (limit ≤ 500) | paginado `ServiceRecord[]` (más reciente primero) | Sesión |
+| GET | `/service-records` | `?from=&to=&serviceTypeId=&status=&page=&limit=` (limit ≤ 500) | paginado `ServiceRecord[]` (más reciente primero) | Sesión |
 | GET | `/service-records/:id` | — | `ServiceRecord` | Sesión |
 | PUT | `/service-records/:id` | `ServiceRecordInput` | 201 si lo crea · 200 si ya existía | Sesión |
 | PATCH | `/service-records/:id/blocks/:blockId` | `{ actualSeconds?, personId? }` | `ServiceRecord` | Sesión |
 | DELETE | `/service-records/:id` | — | 204 | Sesión |
 
 ```ts
-type BlockStatus = "completed" | "skipped" | "adjusted";
+type RecordStatus = "inProgress" | "finished";
+type BlockStatus = "pending" | "running" | "completed" | "skipped" | "adjusted";
 type BlockRecordInput = {
   id: string;                     // generado por la consola
   name: string;                   // 1–60
   plannedSeconds: number;         // entero ≥ 0
-  actualSeconds: number;          // entero ≥ 0 (0 si skipped)
+  actualSeconds: number;          // entero ≥ 0 (0 si skipped o pending)
   personId: string | null;
   personName: string | null;      // nombre en ese momento
-  status: "completed" | "skipped";
+  status: "pending" | "running" | "completed" | "skipped";
+  startedAt?: string | null;      // UTC; reloj de la consola, para retomar
+  endedAt?: string | null;        // UTC
 };
 type ServiceRecordInput = {
+  status?: RecordStatus;          // por defecto "finished"
   date: string;                   // inicio del primer bloque, UTC
   serviceTypeId: string;
   serviceTypeName: string;        // copia, para mostrar si el tipo se borra
   blocks: BlockRecordInput[];     // 1–60, en orden
 };
-type BlockRecord = BlockRecordInput & { status: BlockStatus };
+type BlockRecord = BlockRecordInput & {
+  status: BlockStatus; startedAt: string | null; endedAt: string | null;
+};
 type ServiceRecord = ServiceRecordInput & {
-  id: string; blocks: BlockRecord[];
+  id: string; status: RecordStatus; blocks: BlockRecord[];
   createdAt: string; updatedAt: string;
 };
 ```
 
 - `from` y `to` son instantes UTC (inclusivo / exclusivo) sobre `date`.
+- **Servicio en curso.** La consola guarda el registro con `status: "inProgress"` en cuanto empieza el primer
+  bloque y lo reenvía con el mismo `id` en cada cambio (siguiente bloque, responsable, omitir, editar pendientes);
+  al terminar lo manda `finished`. Así, si la app se cierra, ella misma u otra consola lo retoma desde la copia
+  local o `/sync` (el bloque `running` sigue contando desde su `startedAt`). En curso hay a lo sumo un bloque
+  `running`; terminado solo hay `completed`, `skipped` o `adjusted`.
+- Un registro terminado no vuelve a estar en curso: ese `PUT` responde 409 `RECORD_FINISHED` (una consola
+  atrasada no reabre lo que otra terminó). El `PATCH … { actualSeconds }` de un registro en curso responde 400.
+- Sin `status` el registro llega terminado: así guardan las consolas anteriores, que solo envían al final.
+- Los clientes muestran un registro en curso como "En curso" y lo dejan fuera de promedios, excesos y
+  resúmenes hasta que termine; `Person.blockCount` (§8) no cuenta sus bloques `pending`.
 - `PATCH … { actualSeconds }` marca el bloque `adjusted`. `{ personId }` actualiza también `personName` con el nombre actual (o `null`).
 - **Solo tiempos**, nunca contenido proyectado. Las estadísticas (promedios, excesos, por persona, por bloque) las calcula cada cliente con las reglas de `IRIS_SPEC.md` §7.10: exceso = real − previsto si > 0, sin margen; los omitidos no cuentan.
 

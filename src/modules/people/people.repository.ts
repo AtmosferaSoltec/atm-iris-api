@@ -98,7 +98,8 @@ export class PeopleRepository {
       by: ['personId'],
       where: {
         personId: { in: personIds },
-        status: { not: 'SKIPPED' },
+        // Los pendientes de un servicio en curso aun no los dirigio nadie.
+        status: { notIn: ['SKIPPED', 'PENDING'] },
         serviceRecord: { churchId, deletedAt: null },
       },
       _count: { _all: true },

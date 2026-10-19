@@ -52,11 +52,24 @@ enum PlanItemKind {
 
 /// `ADJUSTED` solo lo pone la API cuando alguien corrige la duracion real.
 enum BlockStatus {
+  /// Solo en un registro en curso: aun no empieza.
+  PENDING
+  /// Solo en un registro en curso: el bloque que corre.
+  RUNNING
   COMPLETED
   SKIPPED
   ADJUSTED
 
   @@map("block_status")
+}
+
+/// La consola guarda el registro desde que empieza el primer bloque y lo
+/// reenvia en cada cambio, para retomarlo si se cierra (contrato §14).
+enum RecordStatus {
+  IN_PROGRESS
+  FINISHED
+
+  @@map("record_status")
 }
 
 enum Testament {
@@ -522,6 +535,7 @@ model ServiceRecord {
   serviceTypeId      String    @map("service_type_id")
   /// Copia del nombre al guardar, para mostrarlo si el tipo se borra.
   serviceTypeName    String    @map("service_type_name") @db.VarChar(60)
+  status             RecordStatus @default(FINISHED)
   /// Sesion (dispositivo) que lo creo.
   createdBySessionId String?   @map("created_by_session_id")
   deletedAt          DateTime? @map("deleted_at") @db.Timestamptz(3)
@@ -555,6 +569,9 @@ model BlockRecord {
   personId        String?     @map("person_id")
   personName      String?     @map("person_name") @db.VarChar(80)
   status          BlockStatus
+  /// Reloj de la consola; con ellos se retoma un bloque que corria.
+  startedAt       DateTime?   @map("started_at") @db.Timestamptz(3)
+  endedAt         DateTime?   @map("ended_at") @db.Timestamptz(3)
 
   serviceRecord ServiceRecord @relation(fields: [serviceRecordId], references: [id], onDelete: Cascade)
 

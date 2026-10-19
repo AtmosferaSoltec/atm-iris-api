@@ -26,6 +26,8 @@ export const API_ERROR_CODES = {
   SERVICE_TYPE_NAME_TAKEN: 'SERVICE_TYPE_NAME_TAKEN',
   /** Un id generado por el cliente ya pertenece a un recurso de otra iglesia. */
   ID_CONFLICT: 'ID_CONFLICT',
+  /** Una consola quiso volver a poner en curso un servicio que ya se termino. */
+  RECORD_FINISHED: 'RECORD_FINISHED',
 
   // Multimedia
   UNSUPPORTED_MEDIA_TYPE: 'UNSUPPORTED_MEDIA_TYPE',

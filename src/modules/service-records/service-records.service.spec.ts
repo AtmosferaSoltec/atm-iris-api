@@ -12,6 +12,7 @@ const user: AuthenticatedUser = {
 };
 
 const input: ServiceRecordInput = {
+  status: 'finished',
   date: new Date('2026-10-04T15:00:00.000Z'),
   serviceTypeId: 'st-1',
   serviceTypeName: 'Culto general',
@@ -24,17 +25,34 @@ const input: ServiceRecordInput = {
       personId: 'p-1',
       personName: 'Ana Torres',
       status: 'completed',
+      startedAt: null,
+      endedAt: null,
+    },
+  ],
+};
+
+/** El mismo servicio, a mitad del primer bloque. */
+const inProgress: ServiceRecordInput = {
+  ...input,
+  status: 'inProgress',
+  blocks: [
+    {
+      ...input.blocks[0]!,
+      actualSeconds: 0,
+      status: 'running',
+      startedAt: new Date('2026-10-04T15:00:00.000Z'),
     },
   ],
 };
 
 /** Una fila guardada a partir del input. */
-const row = (churchId = 'church-1', overrides: Partial<{ status: 'COMPLETED' | 'ADJUSTED'; actualSeconds: number; deletedAt: Date | null }> = {}) => ({
+const row = (churchId = 'church-1', overrides: Partial<{ status: 'COMPLETED' | 'ADJUSTED'; recordStatus: 'IN_PROGRESS' | 'FINISHED'; actualSeconds: number; deletedAt: Date | null }> = {}) => ({
   id: 'r-1',
   churchId,
   date: input.date,
   serviceTypeId: 'st-1',
   serviceTypeName: 'Culto general',
+  status: overrides.recordStatus ?? ('FINISHED' as const),
   createdBySessionId: 's-1',
   deletedAt: overrides.deletedAt ?? null,
   syncVersion: 1n,
@@ -51,6 +69,8 @@ const row = (churchId = 'church-1', overrides: Partial<{ status: 'COMPLETED' | '
       personId: 'p-1',
       personName: 'Ana Torres',
       status: overrides.status ?? ('COMPLETED' as const),
+      startedAt: null,
+      endedAt: null,
     },
   ],
 });
@@ -103,6 +123,20 @@ describe('ServiceRecordsService · PUT idempotente', () => {
     const result = await ctx.service.save(user, 'r-1', input);
     expect(result.isNew).toBe(false);
     expect(ctx.repository.replace).toHaveBeenCalled();
+  });
+
+  it('en curso → terminado: lo reemplaza', async () => {
+    ctx.repository.findAnyById.mockResolvedValue(row('church-1', { recordStatus: 'IN_PROGRESS' }));
+    await ctx.service.save(user, 'r-1', input);
+    expect(ctx.repository.replace).toHaveBeenCalledWith('church-1', 'r-1', input, 'tx');
+  });
+
+  it('terminado → en curso: 409 RECORD_FINISHED, una consola atrasada no lo reabre', async () => {
+    ctx.repository.findAnyById.mockResolvedValue(row());
+    await expect(ctx.service.save(user, 'r-1', inProgress)).rejects.toMatchObject({
+      response: { code: 'RECORD_FINISHED' },
+    });
+    expect(ctx.repository.replace).not.toHaveBeenCalled();
   });
 
   it('existe en otra iglesia → 409 ID_CONFLICT', async () => {

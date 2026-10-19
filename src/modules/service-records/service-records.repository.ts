@@ -4,13 +4,19 @@ import { ChurchWriteLock, type Tx } from '../../database/church-write-lock.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import type { BlockStatus, Prisma } from '../../generated/prisma/client.js';
 import type { ServiceRecordInput } from './dto/service-records.schema.js';
-import { toDbBlockStatus } from './service-records.mapper.js';
+import { toDbBlockStatus, toDbRecordStatus } from './service-records.mapper.js';
+import type { RecordStatusName } from './service-records.types.js';
 
 type Db = PrismaService | Tx;
 
 const WITH_BLOCKS = { blocks: { orderBy: { position: 'asc' } } } as const;
 
-export type RecordFilters = { from?: Date; to?: Date; serviceTypeId?: string };
+export type RecordFilters = {
+  from?: Date;
+  to?: Date;
+  serviceTypeId?: string;
+  status?: RecordStatusName;
+};
 
 @Injectable()
 export class ServiceRecordsRepository {
@@ -97,6 +103,7 @@ export class ServiceRecordsRepository {
         date: input.date,
         serviceTypeId: input.serviceTypeId,
         serviceTypeName: input.serviceTypeName,
+        status: toDbRecordStatus(input.status),
         createdBySessionId: sessionId,
         blocks: { create: blockRows(input) },
       },
@@ -113,6 +120,7 @@ export class ServiceRecordsRepository {
         date: input.date,
         serviceTypeId: input.serviceTypeId,
         serviceTypeName: input.serviceTypeName,
+        status: toDbRecordStatus(input.status),
         updatedAt: new Date(),
         blocks: { create: blockRows(input) },
       },
@@ -152,6 +160,7 @@ function listWhere(churchId: string, filters: RecordFilters): Prisma.ServiceReco
     churchId,
     deletedAt: null,
     ...(filters.serviceTypeId ? { serviceTypeId: filters.serviceTypeId } : {}),
+    ...(filters.status ? { status: toDbRecordStatus(filters.status) } : {}),
     // `from` inclusivo, `to` exclusivo (contrato §14).
     ...(filters.from || filters.to
       ? {
@@ -174,5 +183,7 @@ function blockRows(input: ServiceRecordInput) {
     personId: block.personId,
     personName: block.personName,
     status: toDbBlockStatus(block.status),
+    startedAt: block.startedAt,
+    endedAt: block.endedAt,
   }));
 }

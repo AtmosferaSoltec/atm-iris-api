@@ -154,6 +154,7 @@ const mediaAsset = object({
 
 const serviceRecord = object({
   id: uuid,
+  status: str({ enum: ['inProgress', 'finished'] }),
   date,
   serviceTypeId: uuid,
   serviceTypeName: str(),
@@ -165,7 +166,9 @@ const serviceRecord = object({
       actualSeconds: int(),
       personId: nullable(uuid),
       personName: nullable(str()),
-      status: str({ enum: ['completed', 'skipped', 'adjusted'] }),
+      status: str({ enum: ['pending', 'running', 'completed', 'skipped', 'adjusted'] }),
+      startedAt: nullable(date),
+      endedAt: nullable(date),
     }),
   ),
   createdAt: date,

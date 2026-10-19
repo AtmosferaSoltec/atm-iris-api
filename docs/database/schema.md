@@ -115,6 +115,7 @@ erDiagram
     timestamptz date
     text service_type_id FK
     varchar service_type_name
+    record_status status
     text created_by_session_id FK
     timestamptz deleted_at
     bigint sync_version
@@ -129,6 +130,8 @@ erDiagram
     text person_id
     varchar person_name
     block_status status
+    timestamptz started_at
+    timestamptz ended_at
   }
   bible_translations {
     varchar code PK
@@ -229,8 +232,8 @@ Solo tiempos: lo proyectado nunca se guarda.
 
 | Tabla | Lo no obvio |
 |---|---|
-| `service_records` | El `id` lo genera la consola (el `PUT` es idempotente). `date` = inicio del primer bloque, UTC. `service_type_id` con FK `ON DELETE NO ACTION` (los tipos solo se borran en suave; `NO ACTION` y no `RESTRICT` para que borrar una iglesia en cascada no falle por el orden). `service_type_name` copia el nombre por si el tipo se borra. `created_by_session_id` (`SET NULL`) indica qué dispositivo lo guardó |
-| `block_records` | `id` también de la consola. `person_id` **sin** FK a propósito: el registro conserva el id de una persona borrada, y `person_name` su nombre en ese momento. `status` `ADJUSTED` lo pone solo la API al corregir la duración. `CHECK` de segundos ≥ 0. `blockCount` de `/people` cuenta los no `SKIPPED` de registros no borrados |
+| `service_records` | El `id` lo genera la consola (el `PUT` es idempotente). `date` = inicio del primer bloque, UTC. `service_type_id` con FK `ON DELETE NO ACTION` (los tipos solo se borran en suave; `NO ACTION` y no `RESTRICT` para que borrar una iglesia en cascada no falle por el orden). `service_type_name` copia el nombre por si el tipo se borra. `created_by_session_id` (`SET NULL`) indica qué dispositivo lo guardó. `status` `IN_PROGRESS` mientras la consola lo lleva (lo guarda desde el primer bloque para retomarlo si se cierra); `FINISHED` no vuelve a `IN_PROGRESS` |
+| `block_records` | `id` también de la consola. `person_id` **sin** FK a propósito: el registro conserva el id de una persona borrada, y `person_name` su nombre en ese momento. `status` `ADJUSTED` lo pone solo la API al corregir la duración; `PENDING` y `RUNNING` solo en registros en curso. `started_at`/`ended_at` son el reloj de la consola. `CHECK` de segundos ≥ 0. `blockCount` de `/people` cuenta los no `SKIPPED` ni `PENDING` de registros no borrados |
 
 ## Biblia (fase 06)
 

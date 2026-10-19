@@ -23,6 +23,13 @@ export const idConflict = (field = 'id') =>
     errors: { [field]: 'Ese identificador ya está en uso.' },
   });
 
+/** 409: el registro de tiempos ya se termino (en esta u otra consola). */
+export const recordFinished = () =>
+  new ConflictException({
+    code: API_ERROR_CODES.RECORD_FINISHED,
+    message: 'Ese servicio ya se terminó en otra consola.',
+  });
+
 /** Errores por campo que solo se pueden comprobar contra la base. */
 export const validationFailed = (errors: Record<string, string>) =>
   new BadRequestException({

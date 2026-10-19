@@ -8,6 +8,7 @@ import {
 import {
   idConflict,
   notFound,
+  recordFinished,
   validationFailed,
 } from '../../common/exceptions/api-errors.js';
 import type { Tx } from '../../database/church-write-lock.js';
@@ -34,7 +35,12 @@ export class ServiceRecordsService {
     churchId: string,
     query: ListServiceRecordsQuery,
   ): Promise<Paginated<ServiceRecord>> {
-    const filters = { from: query.from, to: query.to, serviceTypeId: query.serviceTypeId };
+    const filters = {
+      from: query.from,
+      to: query.to,
+      serviceTypeId: query.serviceTypeId,
+      status: query.status,
+    };
     const [rows, total] = await Promise.all([
       this.repository.list(churchId, filters, pageWindow(query)),
       this.repository.count(churchId, filters),
@@ -52,7 +58,9 @@ export class ServiceRecordsService {
    * `PUT /service-records/:id`, el que usa la cola de la consola:
    * - no existe → lo crea, 201;
    * - existe con el mismo contenido → es un reintento: 200 sin tocar nada;
-   * - existe con otro contenido → lo reemplaza (ajuste de tiempos), 200;
+   * - existe con otro contenido → lo reemplaza (avance de un servicio en curso, o ajuste), 200;
+   * - ya terminado y llega `inProgress` → 409 `RECORD_FINISHED`: una consola atrasada
+   *   no reabre un servicio que otra ya termino;
    * - existe en otra iglesia → 409 `ID_CONFLICT`.
    */
   save(
@@ -67,6 +75,9 @@ export class ServiceRecordsService {
 
       if (existing && isSameContent(existing, input)) {
         return { record: toServiceRecord(existing), isNew: false };
+      }
+      if (existing?.status === 'FINISHED' && input.status === 'inProgress') {
+        throw recordFinished();
       }
 
       await this.validate(user.churchId, id, input, tx);
@@ -95,6 +106,11 @@ export class ServiceRecordsService {
       const record = await this.repository.findActive(churchId, recordId, tx);
       if (!record?.blocks.some((block) => block.id === blockId)) {
         throw notFound('Ese bloque no existe en el registro.');
+      }
+      if (input.actualSeconds !== undefined && record.status === 'IN_PROGRESS') {
+        throw validationFailed({
+          actualSeconds: 'El servicio sigue en curso: ajusta el tiempo cuando termine.',
+        });
       }
 
       let person: { personId: string | null; personName: string | null } | undefined;
@@ -162,6 +178,7 @@ export class ServiceRecordsService {
 export function isSameContent(row: ServiceRecordWithBlocks, input: ServiceRecordInput): boolean {
   const current = toServiceRecord(row);
   if (
+    current.status !== input.status ||
     current.date !== input.date.toISOString() ||
     current.serviceTypeId !== input.serviceTypeId ||
     current.serviceTypeName !== input.serviceTypeName ||
@@ -179,7 +196,9 @@ export function isSameContent(row: ServiceRecordWithBlocks, input: ServiceRecord
       saved.actualSeconds === block.actualSeconds &&
       saved.personId === block.personId &&
       saved.personName === block.personName &&
-      saved.status === block.status
+      saved.status === block.status &&
+      saved.startedAt === (block.startedAt?.toISOString() ?? null) &&
+      saved.endedAt === (block.endedAt?.toISOString() ?? null)
     );
   });
 }
