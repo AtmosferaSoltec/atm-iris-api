@@ -58,7 +58,7 @@ PasswordResetCode { id, userId, codeHash, expiresAt, verificationAttempts, usedA
 ### 2.2 Contenido de la iglesia
 
 ```text
-ChurchModules   { bible, multimedia, timeControl }      // Letras siempre activo. Por defecto: los tres en true
+ChurchModules   { bible, multimedia, timeControl }      // Canciones (letra y pista) siempre activo. Por defecto: los tres en true
 Person          { id, churchId, name }
 ServiceType     { id, churchId, name, color, schedule?, blocks: [BlockTemplate] }
   Schedule = { weekday (1 = dom … 7 = sáb), hour (0–23), minute (0–59) }   // hora local de la iglesia

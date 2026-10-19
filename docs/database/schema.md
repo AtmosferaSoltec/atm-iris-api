@@ -20,6 +20,7 @@ erDiagram
   people |o--o{ block_templates : "responsable sugerido"
   churches ||--o{ songs : "tiene"
   songs ||--o{ song_sections : "secciones"
+  songs |o--o| media_assets : "pista"
   churches ||--o{ media_uploads : "reserva"
   churches ||--o{ media_assets : "tiene"
   bible_translations ||--o{ bible_books : "libros"
@@ -67,6 +68,7 @@ erDiagram
     varchar title
     varchar title_key
     varchar author
+    text audio_id FK
     text search_text
     timestamptz deleted_at
     bigint sync_version
@@ -196,7 +198,7 @@ erDiagram
 
 | Tabla | Lo no obvio |
 |---|---|
-| `churches` (módulos) | `bible_enabled`, `multimedia_enabled`, `time_control_enabled` (Letras siempre está activo, sin columna) y `storage_quota_bytes` (5 GiB por defecto) |
+| `churches` (módulos) | `bible_enabled`, `multimedia_enabled`, `time_control_enabled` (Canciones siempre está activo, sin columna) y `storage_quota_bytes` (5 GiB por defecto) |
 | `people` | Quien dirige un bloque en cada servicio (se registra en `block_records`); no es un usuario. `name_key` = `nameKey(name)` (contrato §2), único **parcial** por iglesia entre las no borradas. Borrar una persona no toca las plantillas |
 | `service_types` | Horario en hora local de la iglesia (`weekday` 1 = domingo). `CHECK`: los tres campos del horario son todos `null` o todos válidos. `color` es uno de los seis de la paleta. `name_key` único parcial |
 | `block_templates` | Sin `sync_version` propia: cada escritura reemplaza la lista y actualiza el padre. Único `(service_type_id, position)` **diferible** (`DEFERRABLE INITIALLY DEFERRED`) para poder reordenar dentro de una transacción. `CHECK planned_minutes BETWEEN 1 AND 240`. |
@@ -205,7 +207,7 @@ erDiagram
 
 | Tabla | Lo no obvio |
 |---|---|
-| `songs` | `title_key` = `nameKey(title)`: **no** es único (dos versiones de una canción son válidas); sirve para ordenar y buscar por título. `search_text` = `searchText(title, author, …secciones)`, recalculado por el servicio en cada escritura. Índice GIN `gin_trgm_ops` sobre `search_text` (extensión `pg_trgm` en el esquema `iris`) |
+| `songs` | `title_key` = `nameKey(title)`: **no** es único (dos versiones de una canción son válidas); sirve para ordenar y buscar por título. `search_text` = `searchText(title, author, …secciones)`, recalculado por el servicio en cada escritura. `audio_id` (único, nullable) es la pista: un `media_assets` de audio, uno a uno; letra, pista o ambas. Índice GIN `gin_trgm_ops` sobre `search_text` (extensión `pg_trgm` en el esquema `iris`) |
 | `song_sections` | Una sección = una pantalla del TV. Se reemplazan completas en cada escritura (ids nuevos). Único `(song_id, position)` |
 
 Búsqueda: `search_text ILIKE '%q%' OR word_similarity(q, search_text) > 0.6`, con `q` normalizada por `nameKey`;

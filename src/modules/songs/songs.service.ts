@@ -5,9 +5,15 @@ import {
   paginate,
   type Paginated,
 } from '../../common/dto/pagination.schema.js';
-import { idConflict, notFound } from '../../common/exceptions/api-errors.js';
-import { PlanItemKind } from '../../generated/prisma/client.js';
+import {
+  idConflict,
+  notFound,
+  validationFailed,
+} from '../../common/exceptions/api-errors.js';
+import type { Tx } from '../../database/church-write-lock.js';
+import { MediaKind, PlanItemKind } from '../../generated/prisma/client.js';
 import { nameKey, searchText } from '../../shared/utils/text.js';
+import { MediaRepository } from '../media/media.repository.js';
 import { ServicePlanRepository } from '../service-plan/service-plan.repository.js';
 import type {
   CreateSongInput,
@@ -25,6 +31,7 @@ export class SongsService {
   constructor(
     private readonly repository: SongsRepository,
     private readonly servicePlan: ServicePlanRepository,
+    private readonly media: MediaRepository,
   ) {}
 
   async list(
@@ -76,6 +83,7 @@ export class SongsService {
         }
       }
 
+      await this.assertAudioAvailable(churchId, input.audioId, null, tx);
       const row = await this.repository.create(
         churchId,
         input.id,
@@ -93,6 +101,8 @@ export class SongsService {
       const existing = await this.repository.findAnyById(id, tx);
       if (existing && existing.churchId !== churchId) throw idConflict();
       if (existing?.deletedAt) throw songNotFound();
+
+      await this.assertAudioAvailable(churchId, input.audioId, id, tx);
 
       if (!existing) {
         const row = await this.repository.create(
@@ -112,6 +122,10 @@ export class SongsService {
         keysOf(input),
         tx,
       );
+      // La pista anterior ya no es de nadie: se borra y libera la cuota.
+      if (existing.audioId && existing.audioId !== input.audioId) {
+        await this.media.softDelete(churchId, existing.audioId, tx);
+      }
       return { song: toSong(row), isNew: false };
     });
   }
@@ -121,6 +135,10 @@ export class SongsService {
       const current = await this.repository.findActive(churchId, id, tx);
       if (!current) throw songNotFound();
       await this.repository.softDelete(churchId, id, tx);
+      // La pista es de esta cancion y de ninguna otra: se va con ella.
+      if (current.audioId) {
+        await this.media.softDelete(churchId, current.audioId, tx);
+      }
       // Sin esto, el plan adelantado quedaria con una referencia colgando.
       await this.servicePlan.softDeleteByRef(
         churchId,
@@ -129,6 +147,27 @@ export class SongsService {
         tx,
       );
     });
+  }
+
+  /**
+   * La pista tiene que ser un audio vivo de la iglesia y no ser ya de otra
+   * cancion (uno a uno). `songId` es la cancion que la quiere, si ya existe.
+   */
+  private async assertAudioAvailable(
+    churchId: string,
+    audioId: string | null,
+    songId: string | null,
+    tx: Tx,
+  ): Promise<void> {
+    if (!audioId) return;
+    const audio = await this.media.findActive(churchId, audioId, tx);
+    if (!audio || audio.kind !== MediaKind.AUDIO) {
+      throw validationFailed({ audioId: 'Esa pista no existe.' });
+    }
+    const owner = await this.repository.findByAudioId(audioId, tx);
+    if (owner && owner.id !== songId) {
+      throw validationFailed({ audioId: 'Esa pista ya es de otra canción.' });
+    }
   }
 }
 

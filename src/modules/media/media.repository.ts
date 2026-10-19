@@ -155,6 +155,42 @@ export class MediaRepository {
     });
   }
 
+  /* ------------------------------------------------------------ Pistas */
+  // Un audio es la pista de una cancion (contrato §10). Estas consultas tocan
+  // `songs` desde aqui para no crear un ciclo entre modulos.
+
+  /** La cancion viva que usa este audio como pista, con su numero de secciones. */
+  findSongOfAudio(churchId: string, audioId: string, tx: Tx) {
+    return tx.song.findFirst({
+      where: { churchId, audioId, deletedAt: null },
+      select: { id: true, _count: { select: { sections: true } } },
+    });
+  }
+
+  /** La cancion pierde su pista pero conserva la letra. */
+  async detachSongAudio(churchId: string, songId: string, tx: Tx): Promise<void> {
+    await tx.song.update({
+      where: { id: songId, churchId },
+      data: { audioId: null, updatedAt: new Date() },
+    });
+  }
+
+  /** Una cancion que era solo pista no tiene sentido sin ella. */
+  async softDeleteSong(churchId: string, songId: string, tx: Tx): Promise<void> {
+    await tx.song.update({
+      where: { id: songId, churchId },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  /** La cancion lleva el audio dentro: sube de version para que las consolas lo vean. */
+  async touchSongOfAudio(churchId: string, audioId: string, tx: Tx): Promise<void> {
+    await tx.song.updateMany({
+      where: { churchId, audioId, deletedAt: null },
+      data: { updatedAt: new Date() },
+    });
+  }
+
   /* ------------------------------------------------------------ Limpieza */
   // Las unicas consultas sin `churchId`: la tarea horaria recorre todas las
   // iglesias y solo toca archivos ya abandonados o borrados.
@@ -171,6 +207,30 @@ export class MediaRepository {
     await this.prisma.mediaUpload.deleteMany({
       where: { id: { in: ids }, confirmedAt: null },
     });
+  }
+
+  /** Audios vivos que ninguna cancion usa, subidos antes de `createdBefore`. */
+  findOrphanTracks(createdBefore: Date, take: number) {
+    return this.prisma.mediaAsset.findMany({
+      where: {
+        kind: 'AUDIO',
+        deletedAt: null,
+        createdAt: { lt: createdBefore },
+        song: { is: null },
+      },
+      select: { id: true, churchId: true },
+      take,
+    });
+  }
+
+  /** Bajo el candado: si entretanto una cancion tomo la pista, no se toca. */
+  async softDeleteOrphanTracks(churchId: string, ids: string[]): Promise<void> {
+    await this.lock.run(churchId, (tx) =>
+      tx.mediaAsset.updateMany({
+        where: { churchId, id: { in: ids }, deletedAt: null, song: { is: null } },
+        data: { deletedAt: new Date() },
+      }),
+    );
   }
 
   findAssetsToPurge(deletedBefore: Date, take: number) {

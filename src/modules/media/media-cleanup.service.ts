@@ -12,7 +12,9 @@ const BATCH = 200;
  * Limpieza horaria del almacenamiento:
  * (a) subidas vencidas sin confirmar: se borra el objeto (si llego a subirse) y
  *     el ticket, lo que libera la cuota reservada;
- * (b) medios borrados hace mas de 24 h: se borra el archivo y se marca
+ * (b) audios sin cancion hace mas de 24 h (una pista subida en el editor que
+ *     nunca se guardo, contrato §10): se borran, lo que libera la cuota;
+ * (c) medios borrados hace mas de 24 h: se borra el archivo y se marca
  *     `object_deleted_at`.
  */
 @Injectable()
@@ -30,10 +32,11 @@ export class MediaCleanupService {
 
     try {
       const uploads = await this.purgeExpiredUploads();
+      const orphans = await this.deleteOrphanTracks();
       const objects = await this.purgeDeletedObjects();
-      if (uploads + objects > 0) {
+      if (uploads + orphans + objects > 0) {
         this.logger.log(
-          `Limpieza de multimedia: ${uploads} subidas vencidas y ${objects} archivos borrados`,
+          `Limpieza de multimedia: ${uploads} subidas vencidas, ${orphans} pistas sin canción y ${objects} archivos borrados`,
         );
       }
     } catch (error) {
@@ -51,6 +54,20 @@ export class MediaCleanupService {
     }
     await this.repository.deleteUploads(uploads.map((u) => u.id));
     return uploads.length;
+  }
+
+  private async deleteOrphanTracks(): Promise<number> {
+    const before = new Date(Date.now() - PURGE_AFTER_HOURS * 60 * 60 * 1000);
+    const tracks = await this.repository.findOrphanTracks(before, BATCH);
+
+    const byChurch = new Map<string, string[]>();
+    for (const track of tracks) {
+      byChurch.set(track.churchId, [...(byChurch.get(track.churchId) ?? []), track.id]);
+    }
+    for (const [churchId, ids] of byChurch) {
+      await this.repository.softDeleteOrphanTracks(churchId, ids);
+    }
+    return tracks.length;
   }
 
   private async purgeDeletedObjects(): Promise<number> {

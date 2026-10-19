@@ -95,14 +95,17 @@ export class ServicePlanService {
     refId: string,
     tx: Parameters<ServicePlanRepository['nextPosition']>[1],
   ): Promise<void> {
-    const exists =
-      kind === 'song'
-        ? await this.songs.findActive(churchId, refId, tx)
-        : await this.media.findActive(churchId, refId, tx);
-    if (!exists) {
+    if (kind === 'song') {
+      const song = await this.songs.findActive(churchId, refId, tx);
+      if (!song) throw validationFailed({ refId: 'Esa canción no existe.' });
+      return;
+    }
+    const media = await this.media.findActive(churchId, refId, tx);
+    if (!media) throw validationFailed({ refId: 'Ese medio no existe.' });
+    // Una pista siempre es de una cancion: se agrega la cancion.
+    if (media.kind === 'AUDIO') {
       throw validationFailed({
-        refId:
-          kind === 'song' ? 'Esa canción no existe.' : 'Ese medio no existe.',
+        refId: 'Las pistas se agregan con su canción.',
       });
     }
   }

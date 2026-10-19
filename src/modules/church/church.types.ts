@@ -1,4 +1,4 @@
-/** Contrato §6. Letras siempre esta activo, por eso no aparece. */
+/** Contrato §6. Canciones siempre esta activo, por eso no aparece. */
 export type ChurchModules = {
   bible: boolean;
   multimedia: boolean;
@@ -20,7 +20,7 @@ export type StorageUsage = {
   breakdown: StorageBreakdown;
 };
 
-/** Musica = audios; fondos = imagenes o videos marcados como fondo; multimedia = el resto. */
+/** Musica = audios (las pistas de las canciones); fondos = imagenes o videos marcados como fondo; multimedia = el resto. */
 export type StorageBreakdown = {
   musicBytes: number;
   backgroundBytes: number;

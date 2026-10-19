@@ -14,6 +14,7 @@ import {
   type Paginated,
 } from '../../common/dto/pagination.schema.js';
 import { notFound } from '../../common/exceptions/api-errors.js';
+import type { Tx } from '../../database/church-write-lock.js';
 import { PlanItemKind } from '../../generated/prisma/client.js';
 import { StoragePort } from '../../integrations/storage/storage.port.js';
 import { nameKey } from '../../shared/utils/text.js';
@@ -279,6 +280,9 @@ export class MediaService {
         },
         tx,
       );
+      if (row.kind === 'AUDIO') {
+        await this.repository.touchSongOfAudio(churchId, id, tx);
+      }
       return toMediaAsset(row);
     });
   }
@@ -296,7 +300,23 @@ export class MediaService {
         id,
         tx,
       );
+      if (current.kind === 'AUDIO') await this.releaseSongAudio(churchId, id, tx);
     });
+  }
+
+  /**
+   * Borrar la pista de una cancion: la cancion se queda con su letra, o se
+   * borra (con su lugar en el plan) si era solo pista.
+   */
+  private async releaseSongAudio(churchId: string, audioId: string, tx: Tx) {
+    const song = await this.repository.findSongOfAudio(churchId, audioId, tx);
+    if (!song) return;
+    if (song._count.sections > 0) {
+      await this.repository.detachSongAudio(churchId, song.id, tx);
+      return;
+    }
+    await this.repository.softDeleteSong(churchId, song.id, tx);
+    await this.servicePlan.softDeleteByRef(churchId, PlanItemKind.SONG, song.id, tx);
   }
 }
 

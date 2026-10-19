@@ -113,11 +113,15 @@ const serviceType = object({
   updatedAt: date,
 });
 
+/** La pista de la cancion (contrato §10): un audio de multimedia, o `null` si es solo letra. */
+const songAudio: SchemaObject = { nullable: true, allOf: [ref('MediaAsset')] };
+
 const song = object({
   id: uuid,
   title: str(),
   author: str(),
   sections: array(object({ id: uuid, label: nullable(str()), text: str() })),
+  audio: songAudio,
   createdAt: date,
   updatedAt: date,
 });
@@ -128,6 +132,7 @@ const songSummary = object({
   author: str(),
   sectionCount: int(),
   firstLine: nullable(str()),
+  audio: songAudio,
   updatedAt: date,
 });
 

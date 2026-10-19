@@ -7,7 +7,10 @@ import type { SongInput } from './dto/songs.schema.js';
 
 type Db = PrismaService | Tx;
 
-const WITH_SECTIONS = { sections: { orderBy: { position: 'asc' } } } as const;
+const WITH_SECTIONS = {
+  sections: { orderBy: { position: 'asc' } },
+  audio: true,
+} as const;
 
 /** Lo que pide un `SongSummary`: la primera seccion y el conteo, no todas. */
 const SUMMARY_SELECT = {
@@ -16,6 +19,7 @@ const SUMMARY_SELECT = {
   author: true,
   updatedAt: true,
   sections: { where: { position: 0 }, select: { text: true } },
+  audio: true,
   _count: { select: { sections: true } },
 } as const;
 
@@ -167,6 +171,14 @@ export class SongsRepository {
       data: { deletedAt: new Date() },
     });
   }
+
+  /** La cancion (de cualquier estado) que ya usa esa pista, si hay una. */
+  findByAudioId(audioId: string, db: Db = this.prisma) {
+    return db.song.findUnique({
+      where: { audioId },
+      select: { id: true, churchId: true },
+    });
+  }
 }
 
 function columns(input: SongInput, keys: SongKeys) {
@@ -174,6 +186,7 @@ function columns(input: SongInput, keys: SongKeys) {
     title: input.title,
     titleKey: keys.titleKey,
     author: input.author,
+    audioId: input.audioId,
     searchText: keys.searchText,
   };
 }

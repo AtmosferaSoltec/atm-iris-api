@@ -285,6 +285,9 @@ model Song {
   /// validas); sirve para ordenar y buscar por titulo.
   titleKey    String    @map("title_key") @db.VarChar(120)
   author      String    @default("") @db.VarChar(120)
+  /// La pista de la cancion (un `MediaAsset` de audio), uno a uno. Una cancion
+  /// tiene letra, pista o ambas; la pista no se comparte con otra cancion.
+  audioId     String?   @unique @map("audio_id")
   /// `searchText(title, author, ...secciones)`: lo recalcula el servicio en cada
   /// escritura. La busqueda usa ILIKE y trigramas (pg_trgm) sobre esta columna.
   searchText  String    @map("search_text")
@@ -294,6 +297,7 @@ model Song {
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   church   Church        @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  audio    MediaAsset?   @relation(fields: [audioId], references: [id], onDelete: SetNull)
   sections SongSection[]
 
   @@index([churchId, titleKey])
@@ -378,6 +382,8 @@ model MediaAsset {
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   church Church @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  /// Solo audios: la cancion de la que es pista.
+  song   Song?
 
   @@index([churchId, kind, createdAt(sort: Desc)])
   @@index([churchId, syncVersion])
@@ -393,7 +399,8 @@ model MediaAsset {
 // servicio, solo el estado actual; se agrega y se quita libremente desde
 // cualquier cliente (web, iPad, Windows) y queda igual en los demas.
 
-/// Una cancion o un medio ya elegido para el proximo servicio. `refId` no lleva
+/// Una cancion (con su pista, si tiene) o una imagen o video ya elegido para el
+/// proximo servicio. `refId` no lleva
 /// llave foranea (sigue el patron de `projectionDefaultBackground`): al
 /// borrarse la cancion o el medio referenciado, el servicio que lo borra
 /// tambien borra (suave) estas filas, asi nunca queda una referencia colgando.

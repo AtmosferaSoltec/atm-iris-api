@@ -4,6 +4,7 @@ import type { StoragePort } from '../../integrations/storage/storage.port.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
 import type { CreateUploadInput } from './dto/media.schema.js';
 import { objectKeyFor } from './media.keys.js';
+import type { ServicePlanRepository } from '../service-plan/service-plan.repository.js';
 import type { MediaRepository } from './media.repository.js';
 import { MediaService } from './media.service.js';
 
@@ -37,6 +38,7 @@ function setup() {
   const service = new MediaService(
     repository as unknown as MediaRepository,
     storage as unknown as StoragePort,
+    {} as ServicePlanRepository,
   );
   return { repository, storage, service };
 }

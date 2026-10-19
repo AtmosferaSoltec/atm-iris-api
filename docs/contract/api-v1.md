@@ -199,7 +199,7 @@ Ejemplo `AuthResult`:
 | PUT | `/church/projection` | `ProjectionSettingsInput` | `Church` | Sesión |
 
 ```ts
-type ChurchModules = { bible: boolean; multimedia: boolean; timeControl: boolean };  // Letras siempre activo
+type ChurchModules = { bible: boolean; multimedia: boolean; timeControl: boolean };  // Canciones siempre activo (letra y pista)
 type ProjectionFont =
   | "system" | "systemRounded" | "serif" | "georgia" | "avenirNext"
   | "futura" | "gillSans" | "optima" | "baskerville" | "palatino";
@@ -221,7 +221,7 @@ type StorageUsage = {
   usedBytes: number;                // suma de breakdown
   quotaBytes: number;
   breakdown: {
-    musicBytes: number;             // audios (sección Música)
+    musicBytes: number;             // audios: las pistas de las canciones (sección Canciones)
     backgroundBytes: number;        // imágenes y videos con isBackground (sección Fondos)
     mediaBytes: number;             // el resto de imágenes y videos (sección Multimedia)
   };
@@ -230,7 +230,9 @@ type StorageUsage = {
 
 - `name` 1–120. `timezone` debe ser una zona IANA válida.
 - Iglesia nueva: los tres módulos en `true`, cuota de **5 GiB** (`5368709120`).
-- **Almacenamiento** (`storage`): la cuota es una sola por iglesia y la comparten música, fondos y multimedia.
+- `multimedia` enciende las secciones Multimedia y Fondos (imágenes y videos). Las canciones, con su letra y su pista,
+  están siempre: apagar `multimedia` no apaga las pistas.
+- **Almacenamiento** (`storage`): la cuota es una sola por iglesia y la comparten pistas, fondos y multimedia.
   `breakdown` dice cuánto ocupa cada sección (solo medios no borrados; las subidas en curso no cuentan aquí).
   En `/sync` la iglesia solo viaja cuando cambia, así que una consola que muestre el uso lo pide a `GET /church`.
 - **Letra proyectada** (`projection`): tipografía, tamaño y fondo por defecto, iguales en todas las consolas de la
@@ -313,6 +315,9 @@ type ServiceType = {
 
 ## 10. Canciones — `/songs`
 
+Una canción es la letra que se proyecta **y** la pista que suena en el salón, juntas: al elegirla en la consola ya
+están las dos. Puede tener solo letra, solo pista o ambas, nunca ninguna. Pista y canción van **uno a uno**.
+
 | Método | Ruta | Cuerpo / query | Respuesta | Acceso |
 |---|---|---|---|---|
 | GET | `/songs` | `?search=&page=&limit=&sort=title\|-updatedAt` | paginado `SongSummary[]` | Sesión |
@@ -326,23 +331,35 @@ type SongSectionInput = { label: string | null; text: string };   // label ≤ 4
 type SongInput = {
   title: string;                  // 1–120
   author: string;                 // 0–120 ("" si no hay)
-  sections: SongSectionInput[];   // 1–80, en orden
+  sections: SongSectionInput[];   // 0–80, en orden ([] si es solo pista)
+  audioId?: string | null;        // la pista: id de un MediaAsset de audio (§11). Omitido = null
 };
 type SongSection = { id: string; label: string | null; text: string };
 type Song = {
   id: string; title: string; author: string;
-  sections: SongSection[];
+  sections: SongSection[];        // [] si es solo pista
+  audio: MediaAsset | null;       // la pista (§11); null si es solo letra
   createdAt: string; updatedAt: string;
 };
 type SongSummary = {
   id: string; title: string; author: string;
   sectionCount: number; firstLine: string | null;
+  audio: MediaAsset | null;
   updatedAt: string;
 };
 ```
 
 - `search` busca sin acentos ni mayúsculas en título, autor y texto de las secciones; ordena por relevancia cuando hay búsqueda. `limit` máximo 100. Sin `sort`, se ordena por título.
 - Los títulos **no** son únicos (dos iglesias pueden cantar dos versiones). Dos canciones con el mismo título son dos letras distintas.
+- **Letra o pista**: sin secciones y sin `audioId` → 400 `VALIDATION_FAILED` (`errors.sections`: "Agrega la letra o
+  una pista.").
+- **La pista** se sube como cualquier audio (§11: ticket, `PUT`, confirmar) y luego se asigna con `audioId`. Tiene que
+  ser un audio vivo de la iglesia (`errors.audioId`: "Esa pista no existe.") y no ser ya de otra canción
+  (`errors.audioId`: "Esa pista ya es de otra canción.").
+  Un audio que ninguna canción usa 24 h después de subirlo (una pista que nunca se guardó) se borra solo.
+- `PUT` es reemplazo completo: si `audioId` cambia o viaja `null`, la pista anterior **se borra** y libera la cuota.
+  Borrar la canción borra también su pista. Borrar el audio directo (`DELETE /media/:id`) deja la canción con su letra
+  y `audio: null`, o borra la canción (y su lugar en el plan) si era solo pista.
 - El texto llega ya dividido en secciones: el formato de texto plano (`[Coro]`, línea en blanco entre diapositivas) lo resuelve cada cliente. Regla de referencia: `atm-iris-web/src/lib/lyrics.ts`.
 
 ---
@@ -403,15 +420,18 @@ Flujo:
 3. `POST /media` confirma: la API comprueba que el objeto existe y que su tamaño coincide (`UPLOAD_NOT_FOUND` si no) y crea el `MediaAsset`. Los metadatos (`durationSeconds`, `width`, `height`) los mide el cliente que sube.
 4. Las consolas descargan con `GET /media/:id/download-url` y guardan el archivo en caché por `id` + `updatedAt`.
 
-**Secciones de la web**: **Música** (`kind=audio`, el repertorio de pistas que suenan en el salón), **Fondos**
-(`isBackground=true`) y **Multimedia** (`kind=image,video&isBackground=false`, material para una ocasión). Las tres
-son el mismo `MediaAsset` y comparten la cuota. Las letras (§10) son otra cosa y no ocupan almacenamiento.
+**Secciones de la web**: **Canciones** (§10: la letra y su pista, un audio de aquí), **Fondos**
+(`isBackground=true`) y **Multimedia** (`kind=image,video&isBackground=false`, material para una ocasión). Las pistas,
+los fondos y la multimedia son el mismo `MediaAsset` y comparten la cuota; la letra no ocupa almacenamiento. Un audio
+siempre es la pista de una canción: no hay audios sueltos.
 
 **Qué descarga una consola y cuándo** (los archivos no viven en una carpeta del equipo: salen de aquí):
 - **Imágenes y fondos** (también los videos de fondo): todos, apenas llegan por `/sync`. Son livianos y se
   necesitan al instante.
-- **Música y videos**: solo los que se usan. La descarga empieza al agregarlos al servicio en la consola (o al
-  reproducirlos, si todavía no estaban), y el archivo se queda en el equipo para la próxima vez.
+- **Pistas y videos**: solo los que se usan. La descarga empieza apenas están en el plan (§15), lo haya armado la web
+  u otra consola, al llegar por `/sync`; también al agregarlos al servicio en la consola (o al reproducirlos, si
+  todavía no estaban). La pista de una canción se descarga cuando la canción está en el plan o en el servicio. El
+  archivo se queda en el equipo para la próxima vez.
 - Lo borrado (`deleted.media` en `/sync`, o un `updatedAt` nuevo) se elimina del equipo en la siguiente
   sincronización. El archivo sigue en el almacenamiento 24 h después del borrado, así una consola atrasada no se
   queda a medias.
@@ -434,7 +454,7 @@ type SyncPage = {
   changes: {
     people: Person[];
     serviceTypes: ServiceType[];
-    songs: Song[];                // completas, con secciones
+    songs: Song[];                // completas, con secciones y pista
     media: MediaAsset[];
     serviceRecords: ServiceRecord[];
     servicePlan: ServicePlanItem[]; // §15
@@ -548,13 +568,14 @@ entidad del feed).
 
 ```ts
 type ServicePlanItem = {
-  id: string; kind: "song" | "media"; refId: string; position: number;
+  id: string; kind: "song" | "media"; refId: string; position: number;   // media = imagen o video
   createdAt: string; updatedAt: string;
 };
 ```
 
-- `refId` es el id de una canción (§10) o un medio (§11); la API responde 400 `VALIDATION_FAILED` (`errors.refId`)
-  si no existe.
+- `refId` es el id de una canción (§10, con su pista si tiene) o de una imagen o video (§11); la API responde 400
+  `VALIDATION_FAILED` (`errors.refId`) si no existe. Una pista no se agrega suelta: `kind: "media"` con un audio
+  responde "Las pistas se agregan con su canción.".
 - Si la canción o el medio referenciado se borra, su elemento del plan se borra (suave) con él: nunca queda una
   referencia colgando (mismo principio que `projectionDefaultBackground`, §6, pero aquí sí se limpia porque el
   plan no tiene sentido con una referencia que ya no existe).

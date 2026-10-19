@@ -22,7 +22,7 @@ const sectionSchema = z.object({
     .max(2000, 'La sección tiene como máximo 2000 caracteres.'),
 });
 
-export const songInputSchema = z.object({
+const songFields = z.object({
   title: z
     .string('Escribe el título.')
     .trim()
@@ -33,15 +33,37 @@ export const songInputSchema = z.object({
     .trim()
     .max(120, 'El autor tiene como máximo 120 caracteres.')
     .default(''),
+  // Vacio si la cancion es solo pista; `hasLyricsOrAudio` exige una de las dos.
   sections: z
-    .array(sectionSchema, 'Agrega al menos una sección.')
-    .min(1, 'Agrega al menos una sección.')
-    .max(80, 'Una canción tiene como máximo 80 secciones.'),
+    .array(sectionSchema, 'Las secciones deben ser una lista.')
+    .max(80, 'Una canción tiene como máximo 80 secciones.')
+    .default([]),
+  audioId: z
+    .uuid('La pista debe ser un id de multimedia.')
+    .nullable()
+    .optional()
+    .transform((value) => value ?? null),
 });
 
-export const createSongSchema = songInputSchema.extend({
-  id: z.uuid('El id debe ser un UUID.').optional(),
-});
+/** Una cancion tiene letra, pista o ambas; nunca ninguna. */
+const hasLyricsOrAudio = (
+  song: { sections: unknown[]; audioId: string | null },
+  ctx: z.RefinementCtx,
+) => {
+  if (song.sections.length === 0 && song.audioId === null) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['sections'],
+      message: 'Agrega la letra o una pista.',
+    });
+  }
+};
+
+export const songInputSchema = songFields.superRefine(hasLyricsOrAudio);
+
+export const createSongSchema = songFields
+  .extend({ id: z.uuid('El id debe ser un UUID.').optional() })
+  .superRefine(hasLyricsOrAudio);
 
 export const listSongsSchema = createPaginationSchema().extend({
   search: z.string().trim().max(200).optional(),
