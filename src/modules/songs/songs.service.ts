@@ -43,8 +43,13 @@ export class SongsService {
 
     if (!search) {
       const [rows, total] = await Promise.all([
-        this.repository.listSummaries(churchId, query.sort ?? 'title', window),
-        this.repository.countActive(churchId),
+        this.repository.listSummaries(
+          churchId,
+          query.sort ?? 'title',
+          query.archived,
+          window,
+        ),
+        this.repository.countActive(churchId, query.archived),
       ]);
       return paginate(rows.map(toSongSummary), total, query.page, query.limit);
     }
@@ -54,6 +59,7 @@ export class SongsService {
     const { ids, total } = await this.repository.searchIds(
       churchId,
       search,
+      query.archived,
       window,
     );
     const rows = await this.repository.findSummariesByIds(churchId, ids);
@@ -84,6 +90,7 @@ export class SongsService {
       }
 
       await this.assertAudioAvailable(churchId, input.audioId, null, tx);
+      await this.assertBackground(churchId, input.backgroundId, tx);
       const row = await this.repository.create(
         churchId,
         input.id,
@@ -103,6 +110,7 @@ export class SongsService {
       if (existing?.deletedAt) throw songNotFound();
 
       await this.assertAudioAvailable(churchId, input.audioId, id, tx);
+      await this.assertBackground(churchId, input.backgroundId, tx);
 
       if (!existing) {
         const row = await this.repository.create(
@@ -147,6 +155,60 @@ export class SongsService {
         tx,
       );
     });
+  }
+
+  /**
+   * Archivar: la cancion sale de la biblioteca y se va su pista subida (el
+   * enlace de YouTube se conserva, no ocupa espacio). La letra se queda.
+   */
+  archive(churchId: string, id: string): Promise<Song> {
+    return this.repository.withLock(churchId, (tx) =>
+      this.archiveIn(churchId, id, tx),
+    );
+  }
+
+  /** Vuelve a la biblioteca. Si tenia pista subida, hay que subirla otra vez. */
+  unarchive(churchId: string, id: string): Promise<Song> {
+    return this.repository.withLock(churchId, async (tx) => {
+      const current = await this.repository.findActive(churchId, id, tx);
+      if (!current) throw songNotFound();
+      if (current.archivedAt) await this.repository.unarchive(churchId, id, tx);
+      return toSong((await this.repository.findActive(churchId, id, tx))!);
+    });
+  }
+
+  /** Lo que hace el cron diario: archiva una cancion sin uso. */
+  async archiveStale(churchId: string, id: string): Promise<void> {
+    await this.repository.withLock(churchId, async (tx) => {
+      const current = await this.repository.findActive(churchId, id, tx);
+      if (current && !current.archivedAt)
+        await this.archiveIn(churchId, id, tx);
+    });
+  }
+
+  private async archiveIn(churchId: string, id: string, tx: Tx): Promise<Song> {
+    const current = await this.repository.findActive(churchId, id, tx);
+    if (!current) throw songNotFound();
+    if (!current.archivedAt) {
+      await this.repository.archive(churchId, id, tx);
+      if (current.audioId) {
+        await this.media.softDelete(churchId, current.audioId, tx);
+      }
+    }
+    return toSong((await this.repository.findActive(churchId, id, tx))!);
+  }
+
+  /** El fondo tiene que ser un medio vivo de la iglesia marcado como fondo. */
+  private async assertBackground(
+    churchId: string,
+    backgroundId: string | null | undefined,
+    tx: Tx,
+  ): Promise<void> {
+    if (!backgroundId) return;
+    const media = await this.media.findActive(churchId, backgroundId, tx);
+    if (!media?.isBackground) {
+      throw validationFailed({ backgroundId: 'Ese fondo no existe.' });
+    }
   }
 
   /**

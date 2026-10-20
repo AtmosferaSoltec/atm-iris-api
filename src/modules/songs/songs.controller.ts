@@ -85,6 +85,31 @@ export class SongsController {
     return song;
   }
 
+  @Post(':id/archive')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Archivar una canción: sale de la biblioteca y se borra su pista subida',
+  })
+  @ApiData('Song')
+  archive(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<Song> {
+    return this.songs.archive(user.churchId, id);
+  }
+
+  @Post(':id/unarchive')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Devolver una canción archivada a la biblioteca' })
+  @ApiData('Song')
+  unarchive(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<Song> {
+    return this.songs.unarchive(user.churchId, id);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Borrar una canción' })

@@ -14,6 +14,6 @@ import { YoutubeVideosService } from './youtube-videos.service.js';
     YoutubeVideosRepository,
     ServicePlanRepository,
   ],
-  exports: [YoutubeVideosRepository],
+  exports: [YoutubeVideosRepository, YoutubeVideosService],
 })
 export class YoutubeVideosModule {}

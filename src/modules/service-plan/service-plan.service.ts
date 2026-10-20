@@ -63,6 +63,10 @@ export class ServicePlanService {
         position,
         tx,
       );
+      // Usarla la saca del archivo y reinicia su plazo.
+      if (input.kind === 'song') {
+        await this.songs.markUsed(churchId, input.refId, tx);
+      }
       return { item: toServicePlanItem(row), isNew: true };
     });
   }

@@ -43,6 +43,11 @@ const songFields = z.object({
     .nullable()
     .optional()
     .transform((value) => value ?? null),
+  /** Omitido: no cambia (en un reemplazo) o queda sin fondo (al crear). */
+  backgroundId: z
+    .uuid('El fondo debe ser un id de multimedia.')
+    .nullable()
+    .optional(),
   youtubeMusic: z.boolean('youtubeMusic debe ser true o false.').default(false),
   youtubeId: z
     .string('La pista de YouTube debe ser texto.')
@@ -93,6 +98,11 @@ export const createSongSchema = songFields
 export const listSongsSchema = createPaginationSchema().extend({
   search: z.string().trim().max(200).optional(),
   sort: z.enum(['title', '-updatedAt'], 'Orden inválido.').optional(),
+  /** `true`: las archivadas; sin esto, la biblioteca. */
+  archived: z
+    .enum(['true', 'false'], 'archived debe ser true o false.')
+    .optional()
+    .transform((value) => value === 'true'),
 });
 
 export type SongInput = z.infer<typeof songInputSchema>;

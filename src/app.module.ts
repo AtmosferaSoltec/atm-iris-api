@@ -31,6 +31,7 @@ import { ServiceRecordsModule } from './modules/service-records/service-records.
 import { ServiceTypesModule } from './modules/service-types/service-types.module.js';
 import { SongsModule } from './modules/songs/songs.module.js';
 import { SyncModule } from './modules/sync/sync.module.js';
+import { BackupModule } from './modules/backup/backup.module.js';
 import { YoutubeVideosModule } from './modules/youtube-videos/youtube-videos.module.js';
 
 const LOG_LEVEL: Record<string, string> = {
@@ -108,6 +109,7 @@ const LOG_LEVEL: Record<string, string> = {
     ServicePlanModule,
     SyncModule,
     YoutubeVideosModule,
+    BackupModule,
     AppVersionsModule,
     DisplaysModule,
     HealthModule,

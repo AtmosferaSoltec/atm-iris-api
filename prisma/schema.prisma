@@ -312,6 +312,17 @@ model Song {
   /// `searchText(title, author, ...secciones)`: lo recalcula el servicio en cada
   /// escritura. La busqueda usa ILIKE y trigramas (pg_trgm) sobre esta columna.
   searchText   String    @map("search_text")
+  /// Su fondo (un `MediaAsset` marcado como fondo). La consola lo pone al
+  /// presentar la cancion; no es obligatorio y cambiarlo en vivo no lo guarda.
+  /// Sin llave foranea: el medio se borra en suave, y un id viejo solo se ignora.
+  backgroundId String?   @map("background_id")
+  /// La ultima vez que se agrego al plan del servicio. Nulo si nunca se uso:
+  /// entonces cuenta `createdAt`.
+  lastUsedAt   DateTime? @map("last_used_at") @db.Timestamptz(3)
+  /// Archivada: sale de la biblioteca, conserva la letra y los datos. Si tenia
+  /// una pista subida, esa se borro (el enlace de YouTube se conserva). Volver
+  /// a usarla (o desarchivarla) la regresa a la biblioteca.
+  archivedAt   DateTime? @map("archived_at") @db.Timestamptz(3)
   deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(3)
   syncVersion  BigInt    @default(0) @map("sync_version")
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -322,6 +333,7 @@ model Song {
   sections SongSection[]
 
   @@index([churchId, titleKey])
+  @@index([churchId, archivedAt])
   @@index([churchId, syncVersion])
   @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin, map: "songs_search_text_trgm_idx")
   @@map("songs")

@@ -15,7 +15,15 @@ export type SongWithSections = SongRow & {
 /** Lo minimo para armar un `SongSummary` sin cargar todas las secciones. */
 export type SongSummaryRow = Pick<
   SongRow,
-  'id' | 'title' | 'author' | 'youtubeId' | 'youtubeMusic' | 'updatedAt'
+  | 'id'
+  | 'title'
+  | 'author'
+  | 'youtubeId'
+  | 'youtubeMusic'
+  | 'backgroundId'
+  | 'archivedAt'
+  | 'lastUsedAt'
+  | 'updatedAt'
 > & {
   sections: Pick<SongSectionRow, 'text'>[];
   audio: MediaAssetRow | null;
@@ -37,6 +45,9 @@ export function toSong(row: SongWithSections): Song {
     audio: toAudio(row.audio),
     youtubeId: row.youtubeId,
     youtubeMusic: row.youtubeMusic,
+    backgroundId: row.backgroundId,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
+    lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -52,6 +63,9 @@ export function toSongSummary(row: SongSummaryRow): SongSummary {
     audio: toAudio(row.audio),
     youtubeId: row.youtubeId,
     youtubeMusic: row.youtubeMusic,
+    backgroundId: row.backgroundId,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
+    lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
     updatedAt: row.updatedAt.toISOString(),
   };
 }

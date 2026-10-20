@@ -19,6 +19,9 @@ const SUMMARY_SELECT = {
   author: true,
   youtubeId: true,
   youtubeMusic: true,
+  backgroundId: true,
+  archivedAt: true,
+  lastUsedAt: true,
   updatedAt: true,
   sections: { where: { position: 0 }, select: { text: true } },
   audio: true,
@@ -42,10 +45,15 @@ export class SongsRepository {
   listSummaries(
     churchId: string,
     sort: 'title' | '-updatedAt',
+    archived: boolean,
     page: { skip: number; take: number },
   ) {
     return this.prisma.song.findMany({
-      where: { churchId, deletedAt: null },
+      where: {
+        churchId,
+        deletedAt: null,
+        archivedAt: archivedFilter(archived),
+      },
       select: SUMMARY_SELECT,
       orderBy:
         sort === '-updatedAt'
@@ -55,8 +63,14 @@ export class SongsRepository {
     });
   }
 
-  countActive(churchId: string): Promise<number> {
-    return this.prisma.song.count({ where: { churchId, deletedAt: null } });
+  countActive(churchId: string, archived: boolean): Promise<number> {
+    return this.prisma.song.count({
+      where: {
+        churchId,
+        deletedAt: null,
+        archivedAt: archivedFilter(archived),
+      },
+    });
   }
 
   /**
@@ -72,12 +86,14 @@ export class SongsRepository {
   async searchIds(
     churchId: string,
     query: string,
+    archived: boolean,
     page: { skip: number; take: number },
   ): Promise<{ ids: string[]; total: number }> {
     const pattern = `%${query.replace(/[\\%_]/g, '\\$&')}%`;
     const where = Prisma.sql`
       church_id = ${churchId}
       AND deleted_at IS NULL
+      AND ${archived ? Prisma.sql`archived_at IS NOT NULL` : Prisma.sql`archived_at IS NULL`}
       AND (search_text ILIKE ${pattern} OR word_similarity(${query}, search_text) > 0.6)`;
 
     const [rows, counted] = await Promise.all([
@@ -174,6 +190,45 @@ export class SongsRepository {
     });
   }
 
+  /** Se uso (se agrego al plan): cuenta como reciente y sale del archivo. */
+  async markUsed(churchId: string, id: string, tx: Tx): Promise<void> {
+    await tx.song.updateMany({
+      where: { id, churchId, deletedAt: null },
+      data: { lastUsedAt: new Date(), archivedAt: null },
+    });
+  }
+
+  /**
+   * Canciones sin uso desde `before` que no estan en el plan del servicio (una
+   * que sigue ahi se esta usando, aunque la hayan agregado hace tiempo).
+   */
+  findStale(before: Date, take: number) {
+    return this.prisma.$queryRaw<{ id: string; churchId: string }[]>`
+      SELECT s.id, s.church_id AS "churchId" FROM songs s
+      WHERE s.deleted_at IS NULL
+        AND s.archived_at IS NULL
+        AND COALESCE(s.last_used_at, s.created_at) < ${before}
+        AND NOT EXISTS (
+          SELECT 1 FROM service_plan_items p
+          WHERE p.ref_id = s.id AND p.kind = 'SONG' AND p.deleted_at IS NULL)
+      ORDER BY COALESCE(s.last_used_at, s.created_at)
+      LIMIT ${take}`;
+  }
+
+  async archive(churchId: string, id: string, tx: Tx): Promise<void> {
+    await tx.song.update({
+      where: { id, churchId },
+      data: { archivedAt: new Date(), audioId: null },
+    });
+  }
+
+  async unarchive(churchId: string, id: string, tx: Tx): Promise<void> {
+    await tx.song.update({
+      where: { id, churchId },
+      data: { archivedAt: null, lastUsedAt: new Date() },
+    });
+  }
+
   /** La cancion (de cualquier estado) que ya usa esa pista, si hay una. */
   findByAudioId(audioId: string, db: Db = this.prisma) {
     return db.song.findUnique({
@@ -183,6 +238,9 @@ export class SongsRepository {
   }
 }
 
+/** `true`: solo las archivadas; `false`: solo las de la biblioteca. */
+const archivedFilter = (archived: boolean) => (archived ? { not: null } : null);
+
 function columns(input: SongInput, keys: SongKeys) {
   return {
     title: input.title,
@@ -191,6 +249,11 @@ function columns(input: SongInput, keys: SongKeys) {
     audioId: input.audioId,
     youtubeId: input.youtubeId,
     youtubeMusic: input.youtubeId !== null && input.youtubeMusic,
+    // Omitido en un reemplazo: se queda el que tenia (un cliente que no lo
+    // conoce no lo borra).
+    ...(input.backgroundId !== undefined
+      ? { backgroundId: input.backgroundId }
+      : {}),
     searchText: keys.searchText,
   };
 }
