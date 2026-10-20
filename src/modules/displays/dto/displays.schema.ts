@@ -24,6 +24,8 @@ export const displayStateSchema = z
     preload: z.array(z.record(z.string(), z.unknown())).max(500).optional(),
     /** `Date.now()` de la consola al mandarlo: el televisor corrige su reloj con esto. */
     clock: z.number().int().positive(),
+    /** El televisor que proyecta: solo él recibe esto. Sin él, todos los televisores. */
+    displayId: z.uuid('El id del televisor debe ser un UUID.').optional(),
   })
   .refine((state) => state.frame || state.preload, {
     message: 'Manda el cuadro o la lista de archivos.',

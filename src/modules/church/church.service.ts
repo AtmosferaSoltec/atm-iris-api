@@ -42,6 +42,9 @@ export class ChurchService {
     await this.repository.updateChurch(churchId, {
       projectionFontFamily: input.fontFamily,
       projectionFontSizePt: input.fontSizePt,
+      projectionFontBold: input.fontBold,
+      projectionFontItalic: input.fontItalic,
+      projectionUppercase: input.uppercase,
       projectionDefaultBackground: input.defaultBackgroundId,
     });
     return this.get(churchId);

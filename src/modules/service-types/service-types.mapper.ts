@@ -17,7 +17,6 @@ export function toServiceType(row: ServiceTypeWithBlocks): ServiceType {
   return {
     id: row.id,
     name: row.name,
-    color: row.color,
     schedule: hasSchedule
       ? {
           weekday: row.scheduleWeekday!,

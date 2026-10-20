@@ -5,8 +5,10 @@ import {
   notFound,
   validationFailed,
 } from '../../common/exceptions/api-errors.js';
+import { BibleService } from '../bible/bible.service.js';
 import { MediaRepository } from '../media/media.repository.js';
 import { SongsRepository } from '../songs/songs.repository.js';
+import { YoutubeVideosRepository } from '../youtube-videos/youtube-videos.repository.js';
 import type {
   CreateServicePlanItemInput,
   MoveServicePlanItemInput,
@@ -27,6 +29,8 @@ export class ServicePlanService {
     private readonly repository: ServicePlanRepository,
     private readonly songs: SongsRepository,
     private readonly media: MediaRepository,
+    private readonly bible: BibleService,
+    private readonly youtube: YoutubeVideosRepository,
   ) {}
 
   async list(churchId: string): Promise<ServicePlanItem[]> {
@@ -95,6 +99,17 @@ export class ServicePlanService {
     refId: string,
     tx: Parameters<ServicePlanRepository['nextPosition']>[1],
   ): Promise<void> {
+    if (kind === 'bible') {
+      if (!(await this.bible.passageExists(refId))) {
+        throw validationFailed({ refId: 'Ese pasaje no existe.' });
+      }
+      return;
+    }
+    if (kind === 'youtube') {
+      const video = await this.youtube.findActive(churchId, refId, tx);
+      if (!video) throw validationFailed({ refId: 'Ese video no existe.' });
+      return;
+    }
     if (kind === 'song') {
       const song = await this.songs.findActive(churchId, refId, tx);
       if (!song) throw validationFailed({ refId: 'Esa canción no existe.' });

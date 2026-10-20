@@ -10,7 +10,6 @@ export type BlockTemplate = {
 export type ServiceType = {
   id: string;
   name: string;
-  color: string;
   schedule: Schedule | null;
   /** Ya ordenados: el orden es el del servicio. */
   blocks: BlockTemplate[];

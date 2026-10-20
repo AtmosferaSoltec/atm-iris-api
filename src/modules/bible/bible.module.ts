@@ -7,5 +7,7 @@ import { BibleService } from './bible.service.js';
 @Module({
   controllers: [BibleController],
   providers: [BibleService, BibleRepository],
+  // El plan comprueba que un pasaje exista antes de guardarlo.
+  exports: [BibleService],
 })
 export class BibleModule {}

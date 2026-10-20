@@ -2,8 +2,14 @@ import { z } from 'zod';
 
 export const createServicePlanItemSchema = z.object({
   id: z.uuid('El id debe ser un UUID.').optional(),
-  kind: z.enum(['song', 'media'], 'El tipo debe ser "song" o "media".'),
-  refId: z.string('Indica a que cancion o medio se refiere.').min(1),
+  kind: z.enum(
+    ['song', 'media', 'bible', 'youtube'],
+    'El tipo debe ser "song", "media", "bible" o "youtube".',
+  ),
+  refId: z
+    .string('Indica a que cancion, medio, pasaje o video se refiere.')
+    .min(1)
+    .max(64),
 });
 
 export const moveServicePlanItemSchema = z.object({

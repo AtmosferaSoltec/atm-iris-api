@@ -20,6 +20,7 @@ import { MailModule } from './integrations/mail/mail.module.js';
 import { StorageModule } from './integrations/storage/storage.module.js';
 import { AppVersionsModule } from './modules/app-versions/app-versions.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { BibleModule } from './modules/bible/bible.module.js';
 import { ChurchModule } from './modules/church/church.module.js';
 import { DisplaysModule } from './modules/displays/displays.module.js';
 import { HealthModule } from './modules/health/health.module.js';
@@ -30,6 +31,7 @@ import { ServiceRecordsModule } from './modules/service-records/service-records.
 import { ServiceTypesModule } from './modules/service-types/service-types.module.js';
 import { SongsModule } from './modules/songs/songs.module.js';
 import { SyncModule } from './modules/sync/sync.module.js';
+import { YoutubeVideosModule } from './modules/youtube-videos/youtube-videos.module.js';
 
 const LOG_LEVEL: Record<string, string> = {
   production: 'info',
@@ -100,11 +102,12 @@ const LOG_LEVEL: Record<string, string> = {
     ServiceTypesModule,
     SongsModule,
     MediaModule,
-    // La Biblia salio de las consolas por ahora (2026-10-19): su codigo y sus
-    // tablas siguen; para volver a activarla, importar `BibleModule` aqui.
+    // La Biblia: una sola traduccion para todos (RVR 1909, dominio publico).
+    BibleModule,
     ServiceRecordsModule,
     ServicePlanModule,
     SyncModule,
+    YoutubeVideosModule,
     AppVersionsModule,
     DisplaysModule,
     HealthModule,

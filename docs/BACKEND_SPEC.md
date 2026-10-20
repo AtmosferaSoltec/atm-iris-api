@@ -59,7 +59,7 @@ PasswordResetCode { id, userId, codeHash, expiresAt, verificationAttempts, usedA
 
 ```text
 Person          { id, churchId, name }
-ServiceType     { id, churchId, name, color, schedule?, blocks: [BlockTemplate] }
+ServiceType     { id, churchId, name, schedule?, blocks: [BlockTemplate] }
   Schedule = { weekday (1 = dom … 7 = sáb), hour (0–23), minute (0–59) }   // hora local de la iglesia
   Paleta   = #FFB547 · #FF7A59 · #F0508C · #9B5CFF · #4E5BFF · #3DDC97
 BlockTemplate   { id, name, plannedMinutes (1–240) }    // orden = posición en la lista

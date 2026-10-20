@@ -5,28 +5,24 @@ const MB = 1024 * 1024;
  * La web tiene la misma tabla en `src/domain/media-rules.ts`; si cambias un
  * valor, cambialo en los dos.
  *
- * - Imagen: 16:9, de 1280x720 a 3840x2160; se recomienda 1920x1080.
- * - Video: solo MP4, 16:9, de 1280x720 a 1920x1080, hasta 30 s: se repite en
- *   bucle y sin sonido, asi que lo corto pesa poco y el corte no se nota.
+ * Cualquier tamaño y proporcion: el fondo llena la pantalla recortando lo que
+ * sobra (como `object-fit: cover`). Lo unico que se limita es el peso y, en un
+ * video, la duracion: se repite en bucle y sin sonido, asi que con 30 s basta.
  */
 export const BACKGROUND_RULES = {
   image: {
     contentTypes: ['image/jpeg', 'image/png', 'image/webp'],
-    maxBytes: 10 * MB,
-    minWidth: 1280,
-    maxWidth: 3840,
+    maxBytes: 15 * MB,
   },
   video: {
-    contentTypes: ['video/mp4'],
-    maxBytes: 100 * MB,
-    minWidth: 1280,
-    maxWidth: 1920,
+    contentTypes: ['video/mp4', 'video/quicktime'],
+    maxBytes: 200 * MB,
     maxSeconds: 30,
   },
-  /** 16:9 con un 2 % de margen (1366x768 y similares pasan). */
-  aspectRatio: 16 / 9,
-  aspectTolerance: 0.02,
 } as const;
+
+/** Un video de "30 s" suele medir 30,03 s: medio segundo de margen. */
+const SECONDS_TOLERANCE = 0.5;
 
 type Candidate = {
   kind: 'image' | 'video' | 'audio';
@@ -45,30 +41,20 @@ export function backgroundProblem(media: Candidate): string | null {
 
   if (!(rules.contentTypes as readonly string[]).includes(media.contentType)) {
     return media.kind === 'video'
-      ? 'El video de fondo debe ser MP4.'
+      ? 'El video de fondo debe ser MP4 o MOV.'
       : 'La imagen de fondo debe ser JPG, PNG o WebP.';
   }
   if (media.sizeBytes > rules.maxBytes) {
     return `El archivo pesa demasiado para un fondo. El máximo es ${rules.maxBytes / MB} MB.`;
   }
-  if (!media.width || !media.height) {
-    return 'No pudimos medir el archivo. Prueba con otro.';
-  }
-  const ratio = media.width / media.height;
-  if (
-    Math.abs(ratio / BACKGROUND_RULES.aspectRatio - 1) >
-    BACKGROUND_RULES.aspectTolerance
-  ) {
-    return 'El fondo debe ser horizontal 16:9, por ejemplo 1920 × 1080.';
-  }
-  if (media.width < rules.minWidth || media.width > rules.maxWidth) {
-    return `El fondo debe medir entre ${rules.minWidth} × ${Math.round(rules.minWidth / BACKGROUND_RULES.aspectRatio)} y ${rules.maxWidth} × ${Math.round(rules.maxWidth / BACKGROUND_RULES.aspectRatio)} (recomendado 1920 × 1080).`;
-  }
-  if (
-    media.kind === 'video' &&
-    (media.durationSeconds ?? Infinity) > BACKGROUND_RULES.video.maxSeconds
-  ) {
-    return `El video de fondo dura como máximo ${BACKGROUND_RULES.video.maxSeconds} segundos: se repite en bucle.`;
+  if (media.kind === 'video') {
+    if (media.durationSeconds === null) {
+      return 'No pudimos medir el video. Prueba con otro.';
+    }
+    const { maxSeconds } = BACKGROUND_RULES.video;
+    if (media.durationSeconds > maxSeconds + SECONDS_TOLERANCE) {
+      return `El video de fondo dura como máximo ${maxSeconds} segundos: se repite en bucle.`;
+    }
   }
   return null;
 }

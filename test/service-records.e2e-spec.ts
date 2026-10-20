@@ -27,7 +27,6 @@ describe('registros de tiempos (e2e)', () => {
     const type = (
       await api.post('/service-types', {
         name: 'Culto',
-        color: '#FFB547',
         schedule: null,
         blocks: [],
       })
@@ -111,7 +110,6 @@ describe('registros de tiempos (e2e)', () => {
     const type = (
       await api.post('/service-types', {
         name: 'Culto',
-        color: '#FFB547',
         schedule: null,
         blocks: [],
       })

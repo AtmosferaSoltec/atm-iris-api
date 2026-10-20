@@ -25,6 +25,9 @@ export function toChurch(
     projection: {
       fontFamily: row.projectionFontFamily,
       fontSizePt: row.projectionFontSizePt,
+      fontBold: row.projectionFontBold,
+      fontItalic: row.projectionFontItalic,
+      uppercase: row.projectionUppercase,
       defaultBackgroundId: row.projectionDefaultBackground,
     },
     storage: {

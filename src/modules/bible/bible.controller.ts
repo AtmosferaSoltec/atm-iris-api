@@ -12,10 +12,7 @@ import type {
 } from './bible.types.js';
 import { chapterParamsSchema, type ChapterParams } from './dto/bible.schema.js';
 
-/**
- * Requiere sesion. Fuera de servicio por ahora: `BibleModule` no se registra en
- * `AppModule` (ver alli), asi que estas rutas responden 404.
- */
+/** Requiere sesion. El texto es el mismo para todas las iglesias (contrato §13). */
 @ApiTags('bible')
 @ApiBearerAuth()
 @Controller('bible/translations')

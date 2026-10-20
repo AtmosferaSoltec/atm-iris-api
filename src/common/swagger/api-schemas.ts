@@ -66,6 +66,9 @@ const church = object({
   projection: object({
     fontFamily: str(),
     fontSizePt: int(),
+    fontBold: bool,
+    fontItalic: bool,
+    uppercase: bool,
     defaultBackgroundId: nullable(str()),
   }),
   storage: object({
@@ -89,12 +92,18 @@ const person = object({
   updatedAt: date,
 });
 
+const youtubeVideo = object({
+  id: uuid,
+  videoId: str({ minLength: 11, maxLength: 11 }),
+  title: str(),
+  author: str(),
+  createdAt: date,
+  updatedAt: date,
+});
+
 const serviceType = object({
   id: uuid,
   name: str(),
-  color: str({
-    enum: ['#FFB547', '#FF7A59', '#F0508C', '#9B5CFF', '#4E5BFF', '#3DDC97'],
-  }),
   schedule: { ...schedule, nullable: true },
   blocks: array(
     object({
@@ -185,8 +194,8 @@ const appVersionCheck = object({
 
 const servicePlanItem = object({
   id: uuid,
-  kind: str({ enum: ['song', 'media'] }),
-  refId: uuid,
+  kind: str({ enum: ['song', 'media', 'bible', 'youtube'] }),
+  refId: str(),
   position: int(),
   createdAt: date,
   updatedAt: date,
@@ -249,6 +258,7 @@ export const API_SCHEMAS: Record<string, SchemaObject> = {
   }),
   Church: church,
   Person: person,
+  YoutubeVideo: youtubeVideo,
   ServiceType: serviceType,
   Song: song,
   SongSummary: songSummary,

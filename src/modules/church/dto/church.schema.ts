@@ -50,6 +50,10 @@ export const updateProjectionSchema = z.object({
       PROJECTION_FONT_SIZE_PT.max,
       `El tamaño máximo es ${PROJECTION_FONT_SIZE_PT.max}.`,
     ),
+  /** Omitidos = false: un cliente anterior a estas opciones no las apaga por error al guardar. */
+  fontBold: z.boolean('fontBold debe ser true o false.').default(false),
+  fontItalic: z.boolean('fontItalic debe ser true o false.').default(false),
+  uppercase: z.boolean('uppercase debe ser true o false.').default(false),
   defaultBackgroundId,
 });
 

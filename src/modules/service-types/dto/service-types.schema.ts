@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { MAX_BLOCKS, SERVICE_TYPE_COLORS } from '../service-types.constants.js';
+import { MAX_BLOCKS } from '../service-types.constants.js';
 
 const scheduleSchema = z.object({
   weekday: z
@@ -40,7 +40,6 @@ export const serviceTypeInputSchema = z.object({
     .trim()
     .min(1, 'Escribe el nombre del servicio.')
     .max(60, 'Usa un nombre de 60 caracteres o menos.'),
-  color: z.enum(SERVICE_TYPE_COLORS, 'Elige un color de la paleta.'),
   schedule: scheduleSchema.nullable(),
   blocks: z
     .array(blockSchema, 'Indica los bloques.')

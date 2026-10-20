@@ -10,6 +10,11 @@ type ChurchChannel = {
   /** Reloj de la consola al mandarlo y del API al recibirlo: el televisor saca su desfase. */
   clock?: number;
   receivedAt?: number;
+  /**
+   * El televisor que proyecta: solo él recibe lo de la consola, los demás no hacen nada.
+   * Sin él (la consola no eligio) llega a todos.
+   */
+  target?: string;
   /** Conexiones abiertas por televisor (puede haber varias pestañas). */
   streams: Map<string, Set<Response>>;
 };
@@ -47,9 +52,11 @@ export class DisplaysHub {
     streams.add(response);
     channel.streams.set(displayId, streams);
 
+    // Un televisor que no es el que proyecta se conecta en blanco.
+    const isTarget = !channel.target || channel.target === displayId;
     send(response, 'state', {
-      frame: channel.frame ?? null,
-      preload: channel.preload ?? [],
+      frame: isTarget ? (channel.frame ?? null) : null,
+      preload: isTarget ? (channel.preload ?? []) : [],
       clock: channel.clock ?? null,
       receivedAt: channel.receivedAt ?? null,
     });
@@ -66,12 +73,31 @@ export class DisplaysHub {
     });
   }
 
-  /** Lo nuevo de la consola, a todos los televisores de la iglesia. */
+  /**
+   * Lo nuevo de la consola: al televisor que proyecta (`displayId`) o, sin él, a todos los de
+   * la iglesia. Al cambiar de televisor, el anterior se queda en blanco; la consola vuelve a
+   * mandarle todo al nuevo.
+   */
   publish(
     churchId: string,
     state: { frame?: unknown; preload?: unknown; clock: number },
+    displayId?: string,
   ): void {
     const channel = this.channel(churchId);
+    if (displayId !== channel.target) {
+      const before = channel.target;
+      channel.target = displayId;
+      if (before) {
+        for (const response of channel.streams.get(before) ?? []) {
+          send(response, 'state', {
+            frame: null,
+            preload: [],
+            clock: null,
+            receivedAt: null,
+          });
+        }
+      }
+    }
     const times = { clock: state.clock, receivedAt: Date.now() };
     channel.clock = times.clock;
     channel.receivedAt = times.receivedAt;
@@ -99,7 +125,10 @@ export class DisplaysHub {
   }
 
   private broadcast(channel: ChurchChannel, event: Event, data: object): void {
-    for (const streams of channel.streams.values()) {
+    const targets = channel.target
+      ? [channel.streams.get(channel.target) ?? new Set<Response>()]
+      : channel.streams.values();
+    for (const streams of targets) {
       for (const response of streams) send(response, event, data);
     }
   }

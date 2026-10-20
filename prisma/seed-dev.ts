@@ -74,12 +74,11 @@ const CULTO_BLOCKS = [
 const SERVICE_TYPES = [
   {
     name: 'Culto general',
-    color: '#FFB547',
     schedule: { weekday: 1, hour: 10, minute: 0 },
     blocks: CULTO_BLOCKS,
   },
-  { name: 'Jóvenes', color: '#F0508C', schedule: { weekday: 7, hour: 19, minute: 0 }, blocks: [] },
-  { name: 'ABC', color: '#9B5CFF', schedule: { weekday: 1, hour: 9, minute: 0 }, blocks: [] },
+  { name: 'Jóvenes', schedule: { weekday: 7, hour: 19, minute: 0 }, blocks: [] },
+  { name: 'ABC', schedule: { weekday: 1, hour: 9, minute: 0 }, blocks: [] },
 ];
 
 /** Himnos de dominio publico (traducciones de Juan B. Cabrera y otros, siglo XIX). */
@@ -251,7 +250,6 @@ async function seedContent(churchId: string): Promise<void> {
               churchId,
               name: type.name,
               nameKey: key,
-              color: type.color,
               scheduleWeekday: type.schedule.weekday,
               scheduleHour: type.schedule.hour,
               scheduleMinute: type.schedule.minute,

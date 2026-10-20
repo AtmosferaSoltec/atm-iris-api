@@ -20,49 +20,41 @@ const video = {
 };
 
 describe('backgroundProblem', () => {
-  it('acepta una imagen 1920x1080 y un video MP4 de 20 s', () => {
+  it('acepta cualquier tamaño y proporción: el fondo se recorta para llenar', () => {
     expect(backgroundProblem(image)).toBeNull();
-    expect(backgroundProblem(video)).toBeNull();
+    expect(backgroundProblem({ ...image, width: 640, height: 640 })).toBeNull();
+    expect(
+      backgroundProblem({ ...image, width: null, height: null }),
+    ).toBeNull();
+    expect(
+      backgroundProblem({ ...video, width: 1080, height: 1920 }),
+    ).toBeNull();
+    expect(
+      backgroundProblem({ ...video, width: 3840, height: 2160 }),
+    ).toBeNull();
+    expect(
+      backgroundProblem({ ...video, contentType: 'video/quicktime' }),
+    ).toBeNull();
   });
 
   it('rechaza audio, tipos no permitidos y archivos pesados', () => {
     expect(backgroundProblem({ ...image, kind: 'audio' })).toMatch(/audio/i);
+    expect(backgroundProblem({ ...image, contentType: 'image/gif' })).toMatch(
+      /JPG/,
+    );
     expect(
-      backgroundProblem({ ...video, contentType: 'video/quicktime' }),
-    ).toMatch(/MP4/);
+      backgroundProblem({ ...image, sizeBytes: 16 * 1024 * 1024 }),
+    ).toMatch(/15 MB/);
     expect(
-      backgroundProblem({ ...image, sizeBytes: 11 * 1024 * 1024 }),
-    ).toMatch(/10 MB/);
-    expect(
-      backgroundProblem({ ...video, sizeBytes: 101 * 1024 * 1024 }),
-    ).toMatch(/100 MB/);
+      backgroundProblem({ ...video, sizeBytes: 201 * 1024 * 1024 }),
+    ).toMatch(/200 MB/);
   });
 
-  it('exige 16:9 y un tamaño dentro del rango', () => {
-    expect(backgroundProblem({ ...image, width: 1080, height: 1080 })).toMatch(
-      /16:9/,
-    );
-    expect(backgroundProblem({ ...image, width: 640, height: 360 })).toMatch(
-      /entre 1280/,
-    );
-    expect(backgroundProblem({ ...video, width: 3840, height: 2160 })).toMatch(
-      /entre 1280/,
-    );
-    expect(
-      backgroundProblem({ ...image, width: 1366, height: 768 }),
-    ).toBeNull();
-    expect(backgroundProblem({ ...image, width: null, height: null })).toMatch(
-      /medir/,
-    );
-  });
-
-  it('limita el video a 30 segundos', () => {
-    expect(backgroundProblem({ ...video, durationSeconds: 30 })).toBeNull();
-    expect(backgroundProblem({ ...video, durationSeconds: 31 })).toMatch(
-      /30 segundos/,
-    );
+  it('limita el video a 30 segundos (con medio segundo de margen)', () => {
+    expect(backgroundProblem({ ...video, durationSeconds: 30.03 })).toBeNull();
+    expect(backgroundProblem({ ...video, durationSeconds: 31 })).toMatch(/30/);
     expect(backgroundProblem({ ...video, durationSeconds: null })).toMatch(
-      /30 segundos/,
+      /medir/,
     );
   });
 });

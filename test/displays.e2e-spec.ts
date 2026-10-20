@@ -137,4 +137,63 @@ describe('pantallas (e2e)', () => {
     ).toBe(401);
     expect((await api.get('/displays')).body.data).toEqual([]);
   });
+
+  it('con displayId, solo el televisor que proyecta recibe lo que manda la consola', async () => {
+    const api = authed(app, (await signUp(app)).accessToken);
+    const server = app.getHttpServer();
+
+    async function pair(name: string) {
+      const pairing = (await request(server).post('/api/v1/displays/pairings'))
+        .body.data;
+      const claimed = await api.post('/displays', {
+        code: pairing.code,
+        name,
+      });
+      const status = (
+        await request(server)
+          .get(`/api/v1/displays/pairings/${pairing.id}`)
+          .set('X-Pairing-Secret', pairing.secret)
+      ).body.data;
+      return { id: claimed.body.data.id as string, token: status.token };
+    }
+    const open = (token: string) =>
+      fetch(`${base}/displays/stream`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+    const first = await pair('Salón');
+    const second = await pair('Sala 2');
+    const firstEvents = readEvents(await open(first.token), 3);
+    const secondEvents = readEvents(await open(second.token), 2);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Proyecta el primero: el segundo no recibe este cuadro.
+    await api.put('/displays/state', {
+      frame: { content: { kind: 'text', text: 'Uno' } },
+      clock: 1,
+      displayId: first.id,
+    });
+    // Cambia al segundo: el primero queda en blanco y el segundo recibe lo nuevo.
+    await api.put('/displays/state', {
+      frame: { content: { kind: 'text', text: 'Dos' } },
+      clock: 2,
+      displayId: second.id,
+    });
+
+    const [, uno, blanco] = await firstEvents;
+    expect(uno).toMatchObject({
+      event: 'frame',
+      data: { frame: { content: { kind: 'text', text: 'Uno' } } },
+    });
+    expect(blanco).toMatchObject({
+      event: 'state',
+      data: { frame: null, preload: [] },
+    });
+    // El segundo no vio "Uno": lo primero que recibe tras conectarse es "Dos".
+    const [, dos] = await secondEvents;
+    expect(dos).toMatchObject({
+      event: 'frame',
+      data: { frame: { content: { kind: 'text', text: 'Dos' } } },
+    });
+  });
 });

@@ -2,6 +2,9 @@
 export type ProjectionSettings = {
   fontFamily: string;
   fontSizePt: number;
+  fontBold: boolean;
+  fontItalic: boolean;
+  uppercase: boolean;
   /** Un degradado o una imagen de la biblioteca; "negro" si no hay ninguno. */
   defaultBackgroundId: string | null;
 };

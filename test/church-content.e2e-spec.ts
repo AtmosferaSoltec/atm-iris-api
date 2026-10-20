@@ -34,6 +34,9 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
     expect(church.body.data.projection).toEqual({
       fontFamily: 'system',
       fontSizePt: 88,
+      fontBold: false,
+      fontItalic: false,
+      uppercase: false,
       defaultBackgroundId: null,
     });
 
@@ -69,7 +72,7 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
     expect(
       (
         await api.put('/church/projection', {
-          fontFamily: 'georgia',
+          fontFamily: 'lora',
           fontSizePt: 20,
         })
       ).status,
@@ -77,34 +80,48 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
     expect(
       (
         await api.put('/church/projection', {
-          fontFamily: 'georgia',
+          fontFamily: 'lora',
           fontSizePt: 300,
         })
       ).status,
     ).toBe(400);
 
     const saved = await api.put('/church/projection', {
-      fontFamily: 'georgia',
+      fontFamily: 'lora',
       fontSizePt: 112,
+      fontBold: true,
+      uppercase: true,
       defaultBackgroundId: 'media-abc',
     });
     expect(saved.status).toBe(200);
     expect(saved.body.data.projection).toEqual({
-      fontFamily: 'georgia',
+      fontFamily: 'lora',
       fontSizePt: 112,
+      fontBold: true,
+      fontItalic: false,
+      uppercase: true,
       defaultBackgroundId: 'media-abc',
     });
+    // Las fuentes de antes (de Apple) ya no se ofrecen.
+    expect(
+      (
+        await api.put('/church/projection', {
+          fontFamily: 'georgia',
+          fontSizePt: 88,
+        })
+      ).status,
+    ).toBe(400);
 
     // "" y null borran el fondo por defecto (vuelve a negro); no tienen que repetir el resto.
     const cleared = await api.put('/church/projection', {
-      fontFamily: 'georgia',
+      fontFamily: 'lora',
       fontSizePt: 112,
       defaultBackgroundId: '',
     });
     expect(cleared.body.data.projection.defaultBackgroundId).toBeNull();
 
     expect((await api.get('/church')).body.data.projection.fontFamily).toBe(
-      'georgia',
+      'lora',
     );
   });
 
@@ -146,7 +163,6 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
     const api = authed(app, (await signUp(app)).accessToken);
     const created = await api.post('/service-types', {
       name: 'Culto general',
-      color: '#FFB547',
       schedule: { weekday: 1, hour: 10, minute: 0 },
       blocks: [
         { name: 'Bienvenida', plannedMinutes: 10 },
@@ -158,7 +174,6 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
 
     const duplicate = await api.post('/service-types', {
       name: 'culto GENERAL',
-      color: '#FFB547',
       schedule: null,
       blocks: [],
     });
@@ -166,7 +181,6 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
 
     const replaced = await api.put(`/service-types/${created.body.data.id}`, {
       name: 'Culto general',
-      color: '#4E5BFF',
       schedule: null,
       blocks: [
         { id: sermon.id, name: 'Prédica', plannedMinutes: 45 },
@@ -185,7 +199,6 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
     const id = randomUUID();
     const upsert = await api.put(`/service-types/${id}`, {
       name: 'Jóvenes',
-      color: '#F0508C',
       schedule: { weekday: 7, hour: 19, minute: 0 },
       blocks: [],
     });

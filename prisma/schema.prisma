@@ -46,6 +46,10 @@ enum MediaKind {
 enum PlanItemKind {
   SONG
   MEDIA
+  /// Un pasaje de la Biblia; `refId` es `rvr1909:JHN.3.16-18`.
+  BIBLE
+  /// Un video de YouTube de la biblioteca (`YoutubeVideo`).
+  YOUTUBE
 
   @@map("plan_item_kind")
 }
@@ -107,7 +111,11 @@ model Church {
   /// de los degradados; "negro" si no hay ninguno). El id no se valida contra nada:
   /// si ya no existe, los clientes caen a negro solos.
   projectionFontFamily        String  @default("system") @map("projection_font_family") @db.VarChar(40)
-  projectionFontSizePt        Int     @default(88) @map("projection_font_size_pt") @db.SmallInt
+  projectionFontSizePt        Int     @default(100) @map("projection_font_size_pt") @db.SmallInt
+  /// Negrita, cursiva y todo en mayusculas, para la letra proyectada.
+  projectionFontBold          Boolean @default(false) @map("projection_font_bold")
+  projectionFontItalic        Boolean @default(false) @map("projection_font_italic")
+  projectionUppercase         Boolean @default(false) @map("projection_uppercase")
   projectionDefaultBackground String? @map("projection_default_background") @db.VarChar(64)
 
   /// Version de sincronizacion: la pone el trigger `bump_sync_version` en cada
@@ -126,6 +134,7 @@ model Church {
   serviceRecords   ServiceRecord[]
   servicePlanItems ServicePlanItem[]
   displays         Display[]
+  youtubeVideos    YoutubeVideo[]
 
   @@index([syncVersion])
   @@map("churches")
@@ -245,8 +254,6 @@ model ServiceType {
   churchId        String    @map("church_id")
   name            String    @db.VarChar(60)
   nameKey         String    @map("name_key") @db.VarChar(60)
-  /// Uno de los seis tonos de la paleta del contrato, en `#RRGGBB`.
-  color           String    @db.Char(7)
   /// Horario habitual en la hora local de la iglesia: 1 = domingo ... 7 = sabado.
   /// Los tres son null o ninguno lo es (CHECK en la migracion).
   scheduleWeekday Int?      @map("schedule_weekday") @db.SmallInt
@@ -435,6 +442,28 @@ model ServicePlanItem {
   @@index([churchId, position])
   @@index([churchId, syncVersion])
   @@map("service_plan_items")
+}
+
+/// Un video de YouTube guardado en la biblioteca (Multimedia > YouTube). Solo el enlace:
+/// el video se reproduce en el reproductor de YouTube, nada se descarga.
+model YoutubeVideo {
+  id          String    @id @default(uuid(7))
+  churchId    String    @map("church_id")
+  /// Los 11 caracteres del video.
+  videoId     String    @map("video_id") @db.Char(11)
+  title       String    @db.VarChar(200)
+  author      String    @default("") @db.VarChar(200)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
+  syncVersion BigInt    @default(0) @map("sync_version")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  church Church @relation(fields: [churchId], references: [id], onDelete: Cascade)
+
+  /// Un mismo video una sola vez entre los no borrados.
+  @@unique([churchId, videoId], where: raw("deleted_at IS NULL"))
+  @@index([churchId, syncVersion])
+  @@map("youtube_videos")
 }
 
 // ===========================================================================

@@ -13,7 +13,6 @@ function columns(input: ServiceTypeInput, nameKey: string) {
   return {
     name: input.name,
     nameKey,
-    color: input.color,
     scheduleWeekday: input.schedule?.weekday ?? null,
     scheduleHour: input.schedule?.hour ?? null,
     scheduleMinute: input.schedule?.minute ?? null,

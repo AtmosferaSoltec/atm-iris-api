@@ -18,7 +18,7 @@ churches        + bible_enabled, multimedia_enabled, time_control_enabled (bool,
 people          id, church_id, name VarChar(80), name_key VarChar(80), deleted_at?, sync_version,
                 created_at, updated_at
                 único parcial (church_id, name_key) WHERE deleted_at IS NULL
-service_types   id, church_id, name VarChar(60), name_key, color Char(7),
+service_types   id, church_id, name VarChar(60), name_key,
                 schedule_weekday SmallInt?, schedule_hour SmallInt?, schedule_minute SmallInt?,
                 deleted_at?, sync_version, created_at, updated_at
                 único parcial (church_id, name_key) WHERE deleted_at IS NULL

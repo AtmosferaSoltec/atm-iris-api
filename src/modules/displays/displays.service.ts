@@ -122,7 +122,8 @@ export class DisplaysService {
   }
 
   publish(churchId: string, state: DisplayStateInput): void {
-    this.hub.publish(churchId, state);
+    const { displayId, ...content } = state;
+    this.hub.publish(churchId, content, displayId);
   }
 
   /** El canal del televisor, con su token. */

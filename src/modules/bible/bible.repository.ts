@@ -30,6 +30,24 @@ export class BibleRepository {
     });
   }
 
+  /** Cuantos de los versiculos `from`–`to` de un capitulo existen. */
+  countVerses(
+    code: string,
+    bookId: string,
+    chapter: number,
+    from: number,
+    to: number,
+  ) {
+    return this.prisma.bibleVerse.count({
+      where: {
+        translationCode: code,
+        bookId,
+        chapter,
+        verse: { gte: from, lte: to },
+      },
+    });
+  }
+
   /** Los ~31 000 versiculos, para armar la descarga (se cachea en memoria). */
   listAllVerses(code: string) {
     return this.prisma.bibleVerse.findMany({

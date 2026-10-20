@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { notFound } from '../../common/exceptions/api-errors.js';
 import { buildBibleDownload, gzipBibleDownload } from './bible.download.js';
 import { toBibleBook, toBibleTranslation } from './bible.mapper.js';
+import { parsePassage } from './bible.passage.js';
 import { BibleRepository } from './bible.repository.js';
 import type {
   BibleBook,
@@ -49,6 +50,20 @@ export class BibleService {
         text: verse.text,
       })),
     };
+  }
+
+  /** Si el pasaje (`rvr1909:JHN.3.16-18`) existe entero en una traduccion importada. */
+  async passageExists(ref: string): Promise<boolean> {
+    const passage = parsePassage(ref);
+    if (!passage) return false;
+    const found = await this.repository.countVerses(
+      passage.code,
+      passage.bookId,
+      passage.chapter,
+      passage.from,
+      passage.to,
+    );
+    return found === passage.to - passage.from + 1;
   }
 
   /** La traduccion completa, comprimida, con su ETag `"<code>-<version>"`. */

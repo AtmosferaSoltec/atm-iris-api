@@ -1,25 +1,26 @@
 /**
- * Las 10 tipografias que se ofrecen para la letra proyectada (contrato §6).
- * Son claves, no nombres de fuente: cada cliente las traduce a la fuente real
- * de su plataforma (ver la columna "iOS" / "Windows" aqui al lado). Agregar
- * una fuente es agregar una fila aqui y su traduccion en cada cliente.
+ * Las tipografias que se ofrecen para la letra proyectada (contrato §6). Son
+ * claves, no nombres de fuente. Salvo `system`, son fuentes web libres (Google
+ * Fonts, licencia OFL) que cada cliente incluye consigo: asi la letra se ve
+ * igual en la computadora, en el televisor y en el iPad, sin depender de las
+ * fuentes que traiga cada aparato. Agregar una es agregar una fila aqui y la
+ * fuente en cada cliente.
  */
 export const PROJECTION_FONTS = [
-  // clave            // iOS (nombre real)      // Windows (equivalente sugerido)
-  'system', //         SF Pro                    Segoe UI Variable   — recomendada
-  'systemRounded', //  SF Pro Rounded            Segoe UI
-  'serif', //          New York                  Georgia
-  'georgia', //        Georgia                   Georgia
-  'avenirNext', //     Avenir Next               Century Gothic
-  'futura', //         Futura                    Bahnschrift
-  'gillSans', //       Gill Sans                 Corbel
-  'optima', //         Optima                    Candara
-  'baskerville', //    Baskerville               Cambria
-  'palatino', //       Palatino                  Palatino Linotype
+  // clave              // fuente              // estilo
+  'system', //           la del sistema         sans, la de siempre
+  'inter', //            Inter                  sans moderna, muy legible
+  'montserrat', //       Montserrat             sans geometrica
+  'poppins', //          Poppins                sans redonda
+  'oswald', //           Oswald                 sans angosta, entra mas texto
+  'bebasNeue', //        Bebas Neue             titulos, solo mayusculas
+  'playfairDisplay', //  Playfair Display       serif elegante
+  'lora', //             Lora                   serif para leer
+  'merriweather', //     Merriweather           serif robusta
 ] as const;
 
 export type ProjectionFont = (typeof PROJECTION_FONTS)[number];
 
 export const DEFAULT_PROJECTION_FONT: ProjectionFont = 'system';
-export const DEFAULT_PROJECTION_FONT_SIZE_PT = 88;
-export const PROJECTION_FONT_SIZE_PT = { min: 40, max: 200 } as const;
+export const DEFAULT_PROJECTION_FONT_SIZE_PT = 100;
+export const PROJECTION_FONT_SIZE_PT = { min: 100, max: 250 } as const;
