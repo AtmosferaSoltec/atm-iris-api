@@ -302,13 +302,10 @@ model Song {
   /// La pista de la cancion (un `MediaAsset` de audio), uno a uno. Una cancion
   /// tiene letra, pista o ambas; la pista no se comparte con otra cancion.
   audioId      String?   @unique @map("audio_id")
-  /// La pista en YouTube (o YouTube Music): el id del video, 11 caracteres.
+  /// La pista en YouTube: el id del video, 11 caracteres.
   /// Se reproduce con el reproductor de YouTube, nunca se descarga. Una
   /// cancion tiene `audioId` o `youtubeId`, no los dos.
   youtubeId    String?   @map("youtube_id") @db.VarChar(11)
-  /// El enlace era de YouTube Music (solo la musica) y no de YouTube (con
-  /// video). Solo cambia como se muestra; siempre `false` sin `youtubeId`.
-  youtubeMusic Boolean   @default(false) @map("youtube_music")
   /// `searchText(title, author, ...secciones)`: lo recalcula el servicio en cada
   /// escritura. La busqueda usa ILIKE y trigramas (pg_trgm) sobre esta columna.
   searchText   String    @map("search_text")

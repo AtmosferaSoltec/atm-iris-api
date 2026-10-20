@@ -174,27 +174,20 @@ describe.runIf(storageUp)('canciones con pista (e2e, requiere MinIO)', () => {
       sections: [],
       audio: null,
       youtubeId: 'aqz-KE-bpKQ',
-      youtubeMusic: false,
     });
 
-    // De YouTube Music: solo cambia como se muestra.
-    const music = await api.post('/songs', {
-      title: 'Mi roca',
-      author: '',
+    // Una cancion con letra y sin pista de YouTube.
+    const lyricsOnly = await api.put(`/songs/${song.body.data.id}`, {
+      title: 'Gracias',
+      author: 'Hillsong',
+      sections: [{ label: null, text: 'Gracias' }],
+    });
+    expect(lyricsOnly.body.data.youtubeId).toBeNull();
+    await api.put(`/songs/${song.body.data.id}`, {
+      title: 'Gracias',
+      author: 'Hillsong',
       sections: [],
       youtubeId: 'aqz-KE-bpKQ',
-      youtubeMusic: true,
-    });
-    expect(music.body.data.youtubeMusic).toBe(true);
-    const lyricsOnly = await api.put(`/songs/${music.body.data.id}`, {
-      title: 'Mi roca',
-      author: '',
-      sections: [{ label: null, text: 'Mi roca' }],
-      youtubeMusic: true,
-    });
-    expect(lyricsOnly.body.data).toMatchObject({
-      youtubeId: null,
-      youtubeMusic: false,
     });
     expect(
       (await api.get('/songs?search=gracias')).body.data[0].youtubeId,

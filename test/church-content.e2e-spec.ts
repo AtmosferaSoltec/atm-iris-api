@@ -33,7 +33,7 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
     });
     expect(church.body.data.projection).toEqual({
       fontFamily: 'system',
-      fontSizePt: 88,
+      fontSizePt: 100,
       fontBold: false,
       fontItalic: false,
       uppercase: false,
@@ -65,7 +65,7 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
       (
         await api.put('/church/projection', {
           fontFamily: 'inventada',
-          fontSizePt: 88,
+          fontSizePt: 100,
         })
       ).status,
     ).toBe(400);
@@ -107,7 +107,7 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
       (
         await api.put('/church/projection', {
           fontFamily: 'georgia',
-          fontSizePt: 88,
+          fontSizePt: 100,
         })
       ).status,
     ).toBe(400);

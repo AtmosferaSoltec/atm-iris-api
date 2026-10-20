@@ -18,7 +18,6 @@ const backupSongSchema = z.object({
     .regex(/^[\w-]{11}$/)
     .nullable()
     .optional(),
-  youtubeMusic: z.boolean().default(false),
 });
 
 const backupYoutubeSchema = z.object({

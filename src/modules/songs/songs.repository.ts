@@ -18,7 +18,6 @@ const SUMMARY_SELECT = {
   title: true,
   author: true,
   youtubeId: true,
-  youtubeMusic: true,
   backgroundId: true,
   archivedAt: true,
   lastUsedAt: true,
@@ -248,7 +247,6 @@ function columns(input: SongInput, keys: SongKeys) {
     author: input.author,
     audioId: input.audioId,
     youtubeId: input.youtubeId,
-    youtubeMusic: input.youtubeId !== null && input.youtubeMusic,
     // Omitido en un reemplazo: se queda el que tenia (un cliente que no lo
     // conoce no lo borra).
     ...(input.backgroundId !== undefined

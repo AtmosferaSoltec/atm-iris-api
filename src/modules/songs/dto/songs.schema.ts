@@ -48,7 +48,6 @@ const songFields = z.object({
     .uuid('El fondo debe ser un id de multimedia.')
     .nullable()
     .optional(),
-  youtubeMusic: z.boolean('youtubeMusic debe ser true o false.').default(false),
   youtubeId: z
     .string('La pista de YouTube debe ser texto.')
     .regex(/^[\w-]{11}$/, 'Ese no es un video de YouTube.')

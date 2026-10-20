@@ -19,7 +19,6 @@ export type SongSummaryRow = Pick<
   | 'title'
   | 'author'
   | 'youtubeId'
-  | 'youtubeMusic'
   | 'backgroundId'
   | 'archivedAt'
   | 'lastUsedAt'
@@ -44,7 +43,6 @@ export function toSong(row: SongWithSections): Song {
       })),
     audio: toAudio(row.audio),
     youtubeId: row.youtubeId,
-    youtubeMusic: row.youtubeMusic,
     backgroundId: row.backgroundId,
     archivedAt: row.archivedAt?.toISOString() ?? null,
     lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
@@ -62,7 +60,6 @@ export function toSongSummary(row: SongSummaryRow): SongSummary {
     firstLine: firstLine(row.sections[0]?.text),
     audio: toAudio(row.audio),
     youtubeId: row.youtubeId,
-    youtubeMusic: row.youtubeMusic,
     backgroundId: row.backgroundId,
     archivedAt: row.archivedAt?.toISOString() ?? null,
     lastUsedAt: row.lastUsedAt?.toISOString() ?? null,

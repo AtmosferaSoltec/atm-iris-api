@@ -13,8 +13,6 @@ export type Song = {
   audio: MediaAsset | null;
   /** La pista en YouTube: el id del video. */
   youtubeId: string | null;
-  /** El enlace era de YouTube Music (solo musica), no de YouTube (con video). */
-  youtubeMusic: boolean;
   /** Su fondo (un medio de fondo de §11); la consola lo pone al presentarla. */
   backgroundId: string | null;
   /** Archivada: fuera de la biblioteca, sin su pista subida. */
@@ -32,7 +30,6 @@ export type SongSummary = {
   firstLine: string | null;
   audio: MediaAsset | null;
   youtubeId: string | null;
-  youtubeMusic: boolean;
   backgroundId: string | null;
   archivedAt: string | null;
   lastUsedAt: string | null;

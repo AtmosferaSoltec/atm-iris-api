@@ -126,7 +126,6 @@ const song = object({
   sections: array(object({ id: uuid, label: nullable(str()), text: str() })),
   audio: songAudio,
   youtubeId: nullable(str()),
-  youtubeMusic: bool,
   createdAt: date,
   updatedAt: date,
 });
@@ -139,7 +138,6 @@ const songSummary = object({
   firstLine: nullable(str()),
   audio: songAudio,
   youtubeId: nullable(str()),
-  youtubeMusic: bool,
   updatedAt: date,
 });
 

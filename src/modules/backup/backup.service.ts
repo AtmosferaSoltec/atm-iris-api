@@ -60,7 +60,6 @@ export class BackupService {
           text: section.text,
         })),
         youtubeId: song.youtubeId,
-        youtubeMusic: song.youtubeMusic,
       })),
       youtubeVideos: videos.map((video) => ({
         videoId: video.videoId,
@@ -106,7 +105,6 @@ export class BackupService {
         })),
         audioId: null,
         youtubeId,
-        youtubeMusic: youtubeId !== null && song.youtubeMusic,
       });
       seen.add(key);
       result.songs += 1;
