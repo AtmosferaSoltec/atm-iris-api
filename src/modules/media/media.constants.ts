@@ -17,7 +17,13 @@ export const MEDIA_RULES: Record<
     maxBytes: 2 * GB,
   },
   audio: {
-    contentTypes: ['audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/wav', 'audio/x-wav'],
+    contentTypes: [
+      'audio/mpeg',
+      'audio/mp4',
+      'audio/aac',
+      'audio/wav',
+      'audio/x-wav',
+    ],
     maxBytes: 200 * MB,
   },
 };

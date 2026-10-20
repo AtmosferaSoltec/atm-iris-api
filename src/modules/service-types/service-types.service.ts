@@ -1,10 +1,7 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 
 import { API_ERROR_CODES } from '../../common/constants/error-codes.js';
-import {
-  idConflict,
-  notFound,
-} from '../../common/exceptions/api-errors.js';
+import { idConflict, notFound } from '../../common/exceptions/api-errors.js';
 import type { Tx } from '../../database/church-write-lock.js';
 import { byName, nameKey } from '../../shared/utils/text.js';
 import type {
@@ -50,7 +47,13 @@ export class ServiceTypesService {
       }
 
       const key = await this.validate(churchId, null, input, tx);
-      const row = await this.repository.create(churchId, input.id, input, key, tx);
+      const row = await this.repository.create(
+        churchId,
+        input.id,
+        input,
+        key,
+        tx,
+      );
       return { serviceType: toServiceType(row!), isNew: true };
     });
   }
@@ -115,7 +118,9 @@ export class ServiceTypesService {
     const foreign = new Set(
       owners.filter((o) => o.serviceTypeId !== serviceTypeId).map((o) => o.id),
     );
-    const conflictIndex = input.blocks.findIndex((b) => b.id && foreign.has(b.id));
+    const conflictIndex = input.blocks.findIndex(
+      (b) => b.id && foreign.has(b.id),
+    );
     if (conflictIndex >= 0) throw idConflict(`blocks.${conflictIndex}.id`);
 
     return key;

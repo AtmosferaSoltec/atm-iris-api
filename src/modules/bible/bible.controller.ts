@@ -4,29 +4,28 @@ import type { Response } from 'express';
 
 import { ApiData } from '../../common/swagger/api-schemas.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { SystemFeaturesService } from '../system-features/system-features.service.js';
 import { BibleService } from './bible.service.js';
-import type { BibleBook, BibleChapter, BibleTranslation } from './bible.types.js';
+import type {
+  BibleBook,
+  BibleChapter,
+  BibleTranslation,
+} from './bible.types.js';
 import { chapterParamsSchema, type ChapterParams } from './dto/bible.schema.js';
 
 /**
- * Requiere sesion. No depende del modulo `bible` de cada iglesia, pero si del
- * interruptor de Iris entero (`system_features`): apagado, todo responde 404.
+ * Requiere sesion. Fuera de servicio por ahora: `BibleModule` no se registra en
+ * `AppModule` (ver alli), asi que estas rutas responden 404.
  */
 @ApiTags('bible')
 @ApiBearerAuth()
 @Controller('bible/translations')
 export class BibleController {
-  constructor(
-    private readonly bible: BibleService,
-    private readonly features: SystemFeaturesService,
-  ) {}
+  constructor(private readonly bible: BibleService) {}
 
   @Get()
   @ApiOperation({ summary: 'Traducciones disponibles' })
   @ApiData('BibleTranslation', { isArray: true })
   async list(): Promise<BibleTranslation[]> {
-    await this.features.assertAvailable('bible');
     return this.bible.listTranslations();
   }
 
@@ -34,7 +33,6 @@ export class BibleController {
   @ApiOperation({ summary: 'Libros en orden canónico' })
   @ApiData('BibleBook', { isArray: true })
   async books(@Param('code') code: string): Promise<BibleBook[]> {
-    await this.features.assertAvailable('bible');
     return this.bible.listBooks(code);
   }
 
@@ -44,7 +42,6 @@ export class BibleController {
   async chapter(
     @Param(new ZodValidationPipe(chapterParamsSchema)) params: ChapterParams,
   ): Promise<BibleChapter> {
-    await this.features.assertAvailable('bible');
     return this.bible.getChapter(params.code, params.bookId, params.chapter);
   }
 
@@ -55,7 +52,8 @@ export class BibleController {
    */
   @Get(':code/download')
   @ApiOperation({
-    summary: 'Descarga completa (gzip, ETag por versión) para usar sin conexión',
+    summary:
+      'Descarga completa (gzip, ETag por versión) para usar sin conexión',
   })
   @ApiData('BibleDownload')
   async download(
@@ -63,14 +61,17 @@ export class BibleController {
     @Headers('if-none-match') ifNoneMatch: string | undefined,
     @Res() response: Response,
   ): Promise<void> {
-    await this.features.assertAvailable('bible');
     const { etag, body } = await this.bible.getDownload(code);
 
     response.setHeader('ETag', etag);
     response.setHeader('Cache-Control', 'private, no-cache');
     response.setHeader('Vary', 'Authorization');
 
-    if (ifNoneMatch?.split(',').some((tag) => tag.trim().replace(/^W\//, '') === etag)) {
+    if (
+      ifNoneMatch
+        ?.split(',')
+        .some((tag) => tag.trim().replace(/^W\//, '') === etag)
+    ) {
       response.status(304).end();
       return;
     }

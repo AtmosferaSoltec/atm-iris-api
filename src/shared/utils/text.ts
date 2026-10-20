@@ -27,5 +27,7 @@ export function searchText(...parts: (string | null | undefined)[]): string {
  */
 export const spanishCollator = new Intl.Collator('es', { sensitivity: 'base' });
 
-export const byName = <T>(name: (item: T) => string) => (a: T, b: T) =>
-  spanishCollator.compare(name(a), name(b));
+export const byName =
+  <T>(name: (item: T) => string) =>
+  (a: T, b: T) =>
+    spanishCollator.compare(name(a), name(b));

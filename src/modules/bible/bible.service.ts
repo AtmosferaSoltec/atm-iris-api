@@ -4,7 +4,11 @@ import { notFound } from '../../common/exceptions/api-errors.js';
 import { buildBibleDownload, gzipBibleDownload } from './bible.download.js';
 import { toBibleBook, toBibleTranslation } from './bible.mapper.js';
 import { BibleRepository } from './bible.repository.js';
-import type { BibleBook, BibleChapter, BibleTranslation } from './bible.types.js';
+import type {
+  BibleBook,
+  BibleChapter,
+  BibleTranslation,
+} from './bible.types.js';
 
 export type CachedDownload = { etag: string; body: Buffer };
 
@@ -29,14 +33,21 @@ export class BibleService {
     return rows.map(toBibleBook);
   }
 
-  async getChapter(code: string, bookId: string, chapter: number): Promise<BibleChapter> {
+  async getChapter(
+    code: string,
+    bookId: string,
+    chapter: number,
+  ): Promise<BibleChapter> {
     const verses = await this.repository.findChapter(code, bookId, chapter);
     if (verses.length === 0) throw notFound('Ese capítulo no existe.');
 
     return {
       bookId,
       chapter,
-      verses: verses.map((verse) => ({ number: verse.verse, text: verse.text })),
+      verses: verses.map((verse) => ({
+        number: verse.verse,
+        text: verse.text,
+      })),
     };
   }
 
@@ -65,7 +76,11 @@ export class BibleService {
       this.repository.listBooks(translation.code),
       this.repository.listAllVerses(translation.code),
     ]);
-    const download = buildBibleDownload(translation, books.map(toBibleBook), verses);
+    const download = buildBibleDownload(
+      translation,
+      books.map(toBibleBook),
+      verses,
+    );
     return { etag: `"${key}"`, body: gzipBibleDownload(download) };
   }
 

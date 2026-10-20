@@ -16,7 +16,11 @@ function fakeTx(existingIds: string[]) {
     update: vi.fn(),
     findFirst: vi.fn().mockResolvedValue({ id: 'st-1' }),
   };
-  return { tx: { blockTemplate, serviceType } as unknown as Tx, blockTemplate, serviceType };
+  return {
+    tx: { blockTemplate, serviceType } as unknown as Tx,
+    blockTemplate,
+    serviceType,
+  };
 }
 
 const repository = new ServiceTypesRepository(
@@ -38,7 +42,11 @@ describe('ServiceTypesRepository · reemplazo de bloques', () => {
     await repository.replace(
       'church-1',
       'st-1',
-      input([{ id: 'b2', name: 'Alabanzas' }, { name: 'Nuevo' }, { id: 'b1', name: 'Bienvenida' }]),
+      input([
+        { id: 'b2', name: 'Alabanzas' },
+        { name: 'Nuevo' },
+        { id: 'b1', name: 'Bienvenida' },
+      ]),
       'culto general',
       tx,
     );
@@ -58,7 +66,12 @@ describe('ServiceTypesRepository · reemplazo de bloques', () => {
       data: expect.objectContaining({ position: 0, name: 'Alabanzas' }),
     });
     expect(blockTemplate.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ id: undefined, serviceTypeId: 'st-1', position: 1, name: 'Nuevo' }),
+      data: expect.objectContaining({
+        id: undefined,
+        serviceTypeId: 'st-1',
+        position: 1,
+        name: 'Nuevo',
+      }),
     });
     expect(blockTemplate.update).toHaveBeenNthCalledWith(2, {
       where: { id: 'b1' },
@@ -68,7 +81,13 @@ describe('ServiceTypesRepository · reemplazo de bloques', () => {
 
   it('un id que todavia no existe se crea con ese id (la consola lo genero)', async () => {
     const { tx, blockTemplate } = fakeTx([]);
-    await repository.replace('church-1', 'st-1', input([{ id: 'nuevo', name: 'X' }]), 'k', tx);
+    await repository.replace(
+      'church-1',
+      'st-1',
+      input([{ id: 'nuevo', name: 'X' }]),
+      'k',
+      tx,
+    );
     expect(blockTemplate.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ id: 'nuevo', position: 0 }),
     });

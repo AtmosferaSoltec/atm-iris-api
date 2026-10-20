@@ -18,7 +18,9 @@ export class PeopleRepository {
   }
 
   listActive(churchId: string) {
-    return this.prisma.person.findMany({ where: { churchId, deletedAt: null } });
+    return this.prisma.person.findMany({
+      where: { churchId, deletedAt: null },
+    });
   }
 
   findActive(churchId: string, id: string, db: Db = this.prisma) {
@@ -27,7 +29,9 @@ export class PeopleRepository {
 
   /** Para la sincronizacion: incluye borradas. */
   findManyByIds(churchId: string, ids: string[]) {
-    return this.prisma.person.findMany({ where: { churchId, id: { in: ids } } });
+    return this.prisma.person.findMany({
+      where: { churchId, id: { in: ids } },
+    });
   }
 
   /**

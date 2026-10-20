@@ -33,10 +33,6 @@ erDiagram
     text id PK
     varchar name
     varchar timezone
-    bool bible_enabled
-    bool multimedia_enabled
-    bool time_control_enabled
-    bigint storage_quota_bytes
     varchar projection_font_family
     smallint projection_font_size_pt
     varchar projection_default_background
@@ -201,7 +197,7 @@ erDiagram
 
 | Tabla | Lo no obvio |
 |---|---|
-| `churches` (módulos) | `bible_enabled`, `multimedia_enabled`, `time_control_enabled` (Canciones siempre está activo, sin columna) y `storage_quota_bytes` (5 GiB por defecto) |
+| `churches` | Sin módulos ni planes: todas las iglesias tienen todo y la misma cuota, 5 GiB (`STORAGE_QUOTA_BYTES` en `src/modules/church/storage.ts`), sin columna |
 | `people` | Quien dirige un bloque en cada servicio (se registra en `block_records`); no es un usuario. `name_key` = `nameKey(name)` (contrato §2), único **parcial** por iglesia entre las no borradas. Borrar una persona no toca las plantillas |
 | `service_types` | Horario en hora local de la iglesia (`weekday` 1 = domingo). `CHECK`: los tres campos del horario son todos `null` o todos válidos. `color` es uno de los seis de la paleta. `name_key` único parcial |
 | `block_templates` | Sin `sync_version` propia: cada escritura reemplaza la lista y actualiza el padre. Único `(service_type_id, position)` **diferible** (`DEFERRABLE INITIALLY DEFERRED`) para poder reordenar dentro de una transacción. `CHECK planned_minutes BETWEEN 1 AND 240`. |
@@ -223,7 +219,7 @@ Clave del objeto: `churches/<churchId>/media/<id>/<nombre-saneado>`, nunca expue
 
 | Tabla | Lo no obvio |
 |---|---|
-| `media_uploads` | Ticket de subida: reserva cuota durante 1 h. Cuota = medios no borrados + subidas pendientes sin vencer + el archivo nuevo ≤ `storage_quota_bytes`, comprobada bajo el candado de la iglesia. La limpieza horaria borra los vencidos sin confirmar (y su objeto) |
+| `media_uploads` | Ticket de subida: reserva cuota durante 1 h. Cuota = medios no borrados + subidas pendientes sin vencer + el archivo nuevo ≤ 5 GiB (`STORAGE_QUOTA_BYTES`), comprobada bajo el candado de la iglesia. La limpieza horaria borra los vencidos sin confirmar (y su objeto) |
 | `media_assets` | Se crea al confirmar, **con el mismo id** que la subida. `is_background` solo puede ser `true` en imágenes. `duration_seconds` (audio y video) y `width`/`height` (imagen y video) los mide el cliente y se guardan enteros. El borrado suave libera la cuota al instante; 24 h después la limpieza borra el objeto y marca `object_deleted_at` |
 
 ## Tiempos (fase 07)
@@ -266,17 +262,3 @@ Las consolas mantienen una copia local con `GET /sync/changes`. Para eso:
 Las tablas de contenido llevan `deleted_at`. Las lecturas normales filtran `deleted_at IS NULL`; la
 sincronización informa los borrados. Los únicos por *nameKey* son **parciales** (`WHERE deleted_at IS NULL`),
 declarados en el schema con la preview `partialIndexes` de Prisma, para poder reutilizar el nombre de algo borrado.
-
-## Interruptores del sistema — `system_features`
-
-| Columna | Tipo | |
-|---|---|---|
-| `key` | varchar(40) PK | nombre del módulo: `bible`, `multimedia`, `timeControl` |
-| `enabled` | boolean | `false` lo apaga para todas las iglesias |
-| `description` | varchar(200) | para quien lo cambia a mano |
-| `updated_at` | timestamptz | |
-
-Sin pantalla: se cambia en la base (`UPDATE iris.system_features SET enabled = true WHERE key = 'bible';`).
-El trigger `system_features_touch_churches` toca todas las iglesias para que suban de `sync_version` y las
-consolas lean sus módulos otra vez. Un módulo sin fila está disponible. La migración
-`20261007020000_system_features` crea la fila de la Biblia en `false`.

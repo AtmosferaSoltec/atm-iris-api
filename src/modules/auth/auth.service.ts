@@ -183,7 +183,9 @@ export class AuthService {
     const account = await this.repository.findUserById(user.userId);
     if (!account) throw this.invalidRefreshToken();
 
-    if (!(await this.verifyPassword(input.currentPassword, account.passwordHash))) {
+    if (
+      !(await this.verifyPassword(input.currentPassword, account.passwordHash))
+    ) {
       throw new BadRequestException({
         code: API_ERROR_CODES.INVALID_CURRENT_PASSWORD,
         message: 'La contraseña actual no es correcta.',
@@ -215,7 +217,10 @@ export class AuthService {
   }
 
   /** Cierra un dispositivo propio. Cerrar el actual equivale a `sign-out`. */
-  async revokeSession(user: AuthenticatedUser, sessionId: string): Promise<void> {
+  async revokeSession(
+    user: AuthenticatedUser,
+    sessionId: string,
+  ): Promise<void> {
     const revoked = await this.repository.revokeOwnSession(
       user.userId,
       sessionId,

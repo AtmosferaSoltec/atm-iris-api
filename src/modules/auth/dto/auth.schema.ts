@@ -83,7 +83,9 @@ export const changePasswordSchema = z
       .min(1, 'Ingresa tu contraseña actual.')
       .max(128),
     password: newPassword,
-    passwordConfirmation: z.string('Repite la contraseña.').min(1, 'Repite la contraseña.'),
+    passwordConfirmation: z
+      .string('Repite la contraseña.')
+      .min(1, 'Repite la contraseña.'),
   })
   .refine((data) => data.password === data.passwordConfirmation, {
     path: ['passwordConfirmation'],

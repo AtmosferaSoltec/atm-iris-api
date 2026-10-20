@@ -56,7 +56,9 @@ export const envSchema = z.object({
    * Opcionales en desarrollo: sin ellas el API arranca y la subida de archivos
    * responde 503. En produccion son obligatorias (ver StorageModule).
    */
-  STORAGE_ENDPOINT: blankAsMissing(z.url('STORAGE_ENDPOINT debe ser una URL').optional()),
+  STORAGE_ENDPOINT: blankAsMissing(
+    z.url('STORAGE_ENDPOINT debe ser una URL').optional(),
+  ),
   STORAGE_REGION: blankAsMissing(z.string().default('auto')),
   STORAGE_ACCESS_KEY_ID: blankAsMissing(z.string().optional()),
   STORAGE_SECRET_ACCESS_KEY: blankAsMissing(z.string().optional()),

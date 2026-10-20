@@ -14,7 +14,9 @@ const user: AuthenticatedUser = {
   churchId: 'church-1',
   sessionId: 's-1',
 };
-const upload = (overrides: Partial<CreateUploadInput> = {}): CreateUploadInput => ({
+const upload = (
+  overrides: Partial<CreateUploadInput> = {},
+): CreateUploadInput => ({
   kind: 'image',
   fileName: 'Fondo.png',
   contentType: 'image/png',
@@ -52,27 +54,40 @@ describe('MediaService · validacion de subidas', () => {
   it('rechaza un tipo no permitido para el kind (415)', async () => {
     await expect(
       ctx.service.createUpload(user, upload({ contentType: 'image/gif' })),
-    ).rejects.toMatchObject({ status: 415, response: { code: 'UNSUPPORTED_MEDIA_TYPE' } });
+    ).rejects.toMatchObject({
+      status: 415,
+      response: { code: 'UNSUPPORTED_MEDIA_TYPE' },
+    });
     await expect(
-      ctx.service.createUpload(user, upload({ kind: 'audio', contentType: 'video/mp4' })),
+      ctx.service.createUpload(
+        user,
+        upload({ kind: 'audio', contentType: 'video/mp4' }),
+      ),
     ).rejects.toMatchObject({ response: { code: 'UNSUPPORTED_MEDIA_TYPE' } });
   });
 
   it('rechaza lo que supera el maximo del kind (413)', async () => {
     await expect(
       ctx.service.createUpload(user, upload({ sizeBytes: 20 * MB + 1 })),
-    ).rejects.toMatchObject({ status: 413, response: { code: 'FILE_TOO_LARGE' } });
+    ).rejects.toMatchObject({
+      status: 413,
+      response: { code: 'FILE_TOO_LARGE' },
+    });
   });
 
   it('acepta justo el maximo', async () => {
     ctx.repository.quotaBytes.mockResolvedValue(BigInt(100 * MB));
-    await expect(ctx.service.createUpload(user, upload({ sizeBytes: 20 * MB }))).resolves.toBeDefined();
+    await expect(
+      ctx.service.createUpload(user, upload({ sizeBytes: 20 * MB })),
+    ).resolves.toBeDefined();
   });
 
   it('la cuota cuenta lo usado y lo reservado por subidas pendientes', async () => {
     ctx.repository.usedBytes.mockResolvedValue(BigInt(6 * MB));
     ctx.repository.pendingBytes.mockResolvedValue(BigInt(3 * MB));
-    await expect(ctx.service.createUpload(user, upload({ sizeBytes: 2 * MB }))).rejects.toMatchObject({
+    await expect(
+      ctx.service.createUpload(user, upload({ sizeBytes: 2 * MB })),
+    ).rejects.toMatchObject({
       status: 413,
       response: { code: 'STORAGE_QUOTA_EXCEEDED' },
     });
@@ -88,8 +103,11 @@ describe('MediaService · validacion de subidas', () => {
       uploadUrl: 'http://minio/firmada',
       headers: { 'Content-Type': 'image/png' },
     });
-    expect(saved.objectKey).toBe(`churches/church-1/media/${saved.id}/Fondo.png`);
-    const minutes = (new Date(ticket.expiresAt).getTime() - Date.now()) / 60_000;
+    expect(saved.objectKey).toBe(
+      `churches/church-1/media/${saved.id}/Fondo.png`,
+    );
+    const minutes =
+      (new Date(ticket.expiresAt).getTime() - Date.now()) / 60_000;
     expect(Math.round(minutes)).toBe(60);
   });
 });

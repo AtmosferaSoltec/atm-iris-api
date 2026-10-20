@@ -2,7 +2,10 @@ import { z } from 'zod';
 
 import { createPaginationSchema } from '../../../common/dto/pagination.schema.js';
 
-const kind = z.enum(['image', 'video', 'audio'], 'El tipo debe ser image, video o audio.');
+const kind = z.enum(
+  ['image', 'video', 'audio'],
+  'El tipo debe ser image, video o audio.',
+);
 
 const title = z
   .string('Escribe un título.')
@@ -95,7 +98,9 @@ const kindList = z
 export const listMediaSchema = createPaginationSchema().extend({
   kind: kindList.optional(),
   search: z.string().trim().max(120).optional(),
-  isBackground: z.stringbool({ error: 'isBackground debe ser true o false.' }).optional(),
+  isBackground: z
+    .stringbool({ error: 'isBackground debe ser true o false.' })
+    .optional(),
 });
 
 export type CreateUploadInput = z.infer<typeof createUploadSchema>;

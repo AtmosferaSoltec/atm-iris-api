@@ -97,7 +97,10 @@ function normalizeMessage(
 ): string {
   // Un 500 nunca muestra su mensaje: puede traer detalles internos. Un 503 que
   // el propio codigo lanza a proposito (almacenamiento sin configurar) si.
-  if (status === HttpStatus.INTERNAL_SERVER_ERROR || (!isHttp && status > 500)) {
+  if (
+    status === HttpStatus.INTERNAL_SERVER_ERROR ||
+    (!isHttp && status > 500)
+  ) {
     return FALLBACK_MESSAGE;
   }
   if (Array.isArray(message)) return message[0] ?? FALLBACK_MESSAGE;

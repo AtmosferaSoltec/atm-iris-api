@@ -87,7 +87,7 @@ Todo cuelga de `/api/v1` y es privado (`Authorization: Bearer`) salvo lo marcado
 | Módulo | Rutas |
 |---|---|
 | Auth | `POST /auth/sign-up` · `sign-in` · `refresh` · `forgot-password` · `verify-reset-code` · `reset-password` (públicas) · `GET/PATCH /auth/me` · `POST /auth/sign-out` · `sign-out-all` · `change-password` · `GET /auth/sessions` · `DELETE /auth/sessions/:id` |
-| Iglesia | `GET/PATCH /church` · `PUT /church/modules` |
+| Iglesia | `GET/PATCH /church` · `PUT /church/projection` |
 | Personas | `GET/POST /people` · `PATCH/DELETE /people/:id` |
 | Tipos de servicio | `GET/POST /service-types` · `GET/PUT/DELETE /service-types/:id` |
 | Canciones | `GET/POST /songs` · `POST /songs/import` · `GET/PUT/DELETE /songs/:id` |

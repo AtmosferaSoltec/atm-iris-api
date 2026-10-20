@@ -20,8 +20,8 @@ import { MailModule } from './integrations/mail/mail.module.js';
 import { StorageModule } from './integrations/storage/storage.module.js';
 import { AppVersionsModule } from './modules/app-versions/app-versions.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
-import { BibleModule } from './modules/bible/bible.module.js';
 import { ChurchModule } from './modules/church/church.module.js';
+import { DisplaysModule } from './modules/displays/displays.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { MediaModule } from './modules/media/media.module.js';
 import { PeopleModule } from './modules/people/people.module.js';
@@ -30,7 +30,6 @@ import { ServiceRecordsModule } from './modules/service-records/service-records.
 import { ServiceTypesModule } from './modules/service-types/service-types.module.js';
 import { SongsModule } from './modules/songs/songs.module.js';
 import { SyncModule } from './modules/sync/sync.module.js';
-import { SystemFeaturesModule } from './modules/system-features/system-features.module.js';
 
 const LOG_LEVEL: Record<string, string> = {
   production: 'info',
@@ -96,17 +95,18 @@ const LOG_LEVEL: Record<string, string> = {
     MailModule,
     StorageModule,
     AuthModule,
-    SystemFeaturesModule,
     ChurchModule,
     PeopleModule,
     ServiceTypesModule,
     SongsModule,
     MediaModule,
-    BibleModule,
+    // La Biblia salio de las consolas por ahora (2026-10-19): su codigo y sus
+    // tablas siguen; para volver a activarla, importar `BibleModule` aqui.
     ServiceRecordsModule,
     ServicePlanModule,
     SyncModule,
     AppVersionsModule,
+    DisplaysModule,
     HealthModule,
   ],
   providers: [

@@ -9,8 +9,12 @@ export type Song = {
   author: string;
   /** Vacio si la cancion es solo pista. */
   sections: SongSection[];
-  /** La pista (un audio de §11); `null` si es solo letra. */
+  /** La pista (un audio de §11); `null` si es solo letra o si esta en YouTube. */
   audio: MediaAsset | null;
+  /** La pista en YouTube: el id del video. */
+  youtubeId: string | null;
+  /** El enlace era de YouTube Music (solo musica), no de YouTube (con video). */
+  youtubeMusic: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -22,5 +26,7 @@ export type SongSummary = {
   sectionCount: number;
   firstLine: string | null;
   audio: MediaAsset | null;
+  youtubeId: string | null;
+  youtubeMusic: boolean;
   updatedAt: string;
 };

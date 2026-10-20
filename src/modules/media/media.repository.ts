@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { ChurchWriteLock, type Tx } from '../../database/church-write-lock.js';
 import { PrismaService } from '../../database/prisma.service.js';
+import { STORAGE_QUOTA_BYTES } from '../church/storage.js';
 import type { MediaKind, Prisma } from '../../generated/prisma/client.js';
 
 type Db = PrismaService | Tx;
@@ -44,12 +45,9 @@ export class MediaRepository {
     return this.lock.run(churchId, work);
   }
 
-  async quotaBytes(churchId: string, db: Db = this.prisma): Promise<bigint> {
-    const church = await db.church.findUnique({
-      where: { id: churchId },
-      select: { storageQuotaBytes: true },
-    });
-    return church?.storageQuotaBytes ?? 0n;
+  /** El mismo para todas las iglesias (contrato §6). */
+  quotaBytes(): bigint {
+    return STORAGE_QUOTA_BYTES;
   }
 
   /** Lo que ya ocupa la iglesia: medios no borrados. */
@@ -123,11 +121,15 @@ export class MediaRepository {
   }
 
   count(churchId: string, filters: MediaFilters): Promise<number> {
-    return this.prisma.mediaAsset.count({ where: this.listWhere(churchId, filters) });
+    return this.prisma.mediaAsset.count({
+      where: this.listWhere(churchId, filters),
+    });
   }
 
   findActive(churchId: string, id: string, db: Db = this.prisma) {
-    return db.mediaAsset.findFirst({ where: { id, churchId, deletedAt: null } });
+    return db.mediaAsset.findFirst({
+      where: { id, churchId, deletedAt: null },
+    });
   }
 
   findAny(churchId: string, id: string, db: Db = this.prisma) {
@@ -136,7 +138,9 @@ export class MediaRepository {
 
   /** Para la sincronizacion: incluye borrados. */
   findManyByIds(churchId: string, ids: string[]) {
-    return this.prisma.mediaAsset.findMany({ where: { churchId, id: { in: ids } } });
+    return this.prisma.mediaAsset.findMany({
+      where: { churchId, id: { in: ids } },
+    });
   }
 
   update(
@@ -168,7 +172,11 @@ export class MediaRepository {
   }
 
   /** La cancion pierde su pista pero conserva la letra. */
-  async detachSongAudio(churchId: string, songId: string, tx: Tx): Promise<void> {
+  async detachSongAudio(
+    churchId: string,
+    songId: string,
+    tx: Tx,
+  ): Promise<void> {
     await tx.song.update({
       where: { id: songId, churchId },
       data: { audioId: null, updatedAt: new Date() },
@@ -176,7 +184,11 @@ export class MediaRepository {
   }
 
   /** Una cancion que era solo pista no tiene sentido sin ella. */
-  async softDeleteSong(churchId: string, songId: string, tx: Tx): Promise<void> {
+  async softDeleteSong(
+    churchId: string,
+    songId: string,
+    tx: Tx,
+  ): Promise<void> {
     await tx.song.update({
       where: { id: songId, churchId },
       data: { deletedAt: new Date() },
@@ -184,7 +196,11 @@ export class MediaRepository {
   }
 
   /** La cancion lleva el audio dentro: sube de version para que las consolas lo vean. */
-  async touchSongOfAudio(churchId: string, audioId: string, tx: Tx): Promise<void> {
+  async touchSongOfAudio(
+    churchId: string,
+    audioId: string,
+    tx: Tx,
+  ): Promise<void> {
     await tx.song.updateMany({
       where: { churchId, audioId, deletedAt: null },
       data: { updatedAt: new Date() },
@@ -227,7 +243,12 @@ export class MediaRepository {
   async softDeleteOrphanTracks(churchId: string, ids: string[]): Promise<void> {
     await this.lock.run(churchId, (tx) =>
       tx.mediaAsset.updateMany({
-        where: { churchId, id: { in: ids }, deletedAt: null, song: { is: null } },
+        where: {
+          churchId,
+          id: { in: ids },
+          deletedAt: null,
+          song: { is: null },
+        },
         data: { deletedAt: new Date() },
       }),
     );
@@ -256,12 +277,17 @@ export class MediaRepository {
     );
   }
 
-  private listWhere(churchId: string, filters: MediaFilters): Prisma.MediaAssetWhereInput {
+  private listWhere(
+    churchId: string,
+    filters: MediaFilters,
+  ): Prisma.MediaAssetWhereInput {
     return {
       churchId,
       deletedAt: null,
       ...(filters.kinds ? { kind: { in: filters.kinds } } : {}),
-      ...(filters.isBackground !== undefined ? { isBackground: filters.isBackground } : {}),
+      ...(filters.isBackground !== undefined
+        ? { isBackground: filters.isBackground }
+        : {}),
       ...(filters.titleKey ? { titleKey: { contains: filters.titleKey } } : {}),
     };
   }

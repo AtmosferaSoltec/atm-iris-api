@@ -70,7 +70,8 @@ export class ServiceTypesController {
 
   @Put(':id')
   @ApiOperation({
-    summary: 'Reemplazar un tipo de servicio y sus bloques (lo crea si no existe)',
+    summary:
+      'Reemplazar un tipo de servicio y sus bloques (lo crea si no existe)',
   })
   @ApiData('ServiceType')
   async replace(
@@ -90,7 +91,9 @@ export class ServiceTypesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Borrar un tipo de servicio (conserva sus registros)' })
+  @ApiOperation({
+    summary: 'Borrar un tipo de servicio (conserva sus registros)',
+  })
   remove(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,

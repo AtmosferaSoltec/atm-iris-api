@@ -195,11 +195,9 @@ Ejemplo `AuthResult`:
 |---|---|---|---|---|
 | GET | `/church` | — | `Church` | Sesión |
 | PATCH | `/church` | `{ name?, timezone? }` | `Church` | Sesión |
-| PUT | `/church/modules` | `ChurchModules` | `Church` | Sesión |
 | PUT | `/church/projection` | `ProjectionSettingsInput` | `Church` | Sesión |
 
 ```ts
-type ChurchModules = { bible: boolean; multimedia: boolean; timeControl: boolean };  // Canciones siempre activo (letra y pista)
 type ProjectionFont =
   | "system" | "systemRounded" | "serif" | "georgia" | "avenirNext"
   | "futura" | "gillSans" | "optima" | "baskerville" | "palatino";
@@ -211,15 +209,13 @@ type ProjectionSettings = {
 type ProjectionSettingsInput = ProjectionSettings;  // defaultBackgroundId: "" o null limpian
 type Church = {
   id: string; name: string; timezone: string;
-  modules: ChurchModules;           // lo que la iglesia ve encendido (su elección y lo disponible en Iris)
-  availableModules: ChurchModules;  // módulos que existen hoy en Iris; lo que está en false no se ofrece
   projection: ProjectionSettings;   // cómo se ve la letra proyectada; igual en todas las consolas
   storage: StorageUsage;
   createdAt: string; updatedAt: string;
 };
 type StorageUsage = {
   usedBytes: number;                // suma de breakdown
-  quotaBytes: number;
+  quotaBytes: number;               // 5 GiB (5368709120), el mismo para todas las iglesias
   breakdown: {
     musicBytes: number;             // audios: las pistas de las canciones (sección Canciones)
     backgroundBytes: number;        // imágenes y videos con isBackground (sección Fondos)
@@ -229,9 +225,8 @@ type StorageUsage = {
 ```
 
 - `name` 1–120. `timezone` debe ser una zona IANA válida.
-- Iglesia nueva: los tres módulos en `true`, cuota de **5 GiB** (`5368709120`).
-- `multimedia` enciende las secciones Multimedia y Fondos (imágenes y videos). Las canciones, con su letra y su pista,
-  están siempre: apagar `multimedia` no apaga las pistas.
+- **Sin módulos ni planes**: todas las iglesias tienen canciones, multimedia, fondos y control de tiempo, y el mismo
+  espacio, **5 GiB**.
 - **Almacenamiento** (`storage`): la cuota es una sola por iglesia y la comparten pistas, fondos y multimedia.
   `breakdown` dice cuánto ocupa cada sección (solo medios no borrados; las subidas en curso no cuentan aquí).
   En `/sync` la iglesia solo viaja cuando cambia, así que una consola que muestre el uso lo pide a `GET /church`.
@@ -241,12 +236,6 @@ type StorageUsage = {
   plataforma). `defaultBackgroundId` es el id de un fondo (uno de los degradados fijos o una imagen de la
   biblioteca) que se muestra cuando la consola no tiene ninguno elegido; un id que ya no existe (una imagen
   borrada) cae a negro sin avisar, los clientes no lo validan contra nada.
-- **Módulos del sistema** (`availableModules`): el dueño de Iris puede apagar un módulo para todas las iglesias
-  (tabla `system_features`, sin pantalla). Mientras esté apagado, `modules` lo trae en `false` aunque la iglesia lo
-  haya encendido (su elección se guarda y vuelve sola al habilitarlo), y los clientes **no lo muestran**, ni
-  siquiera el interruptor en ajustes. Al cambiar un interruptor del sistema, todas las iglesias suben de versión
-  en `/sync` y las consolas lo reciben en el siguiente ciclo. **Hoy la Biblia está apagada** (`bible: false`).
-
 ---
 
 ## 7. Reservado
@@ -309,14 +298,14 @@ type ServiceType = {
 
 - Un tipo "controla tiempo" si tiene al menos un bloque. Sin bloques es "Solo proyección".
 - Los bloques sin `id` reciben uno nuevo; los que traen `id` lo conservan. Los que no vienen en el arreglo se eliminan.
-- Con el módulo `timeControl` apagado, la API **acepta y guarda** bloques igual; son los clientes los que no los muestran ni los editan (para no borrarlos por accidente, los clientes reenvían los bloques existentes intactos).
 
 ---
 
 ## 10. Canciones — `/songs`
 
 Una canción es la letra que se proyecta **y** la pista que suena en el salón, juntas: al elegirla en la consola ya
-están las dos. Puede tener solo letra, solo pista o ambas, nunca ninguna. Pista y canción van **uno a uno**.
+están las dos. Puede tener solo letra, solo pista o ambas, nunca ninguna. La pista es **un audio subido** (uno a uno
+con la canción) **o un video de YouTube** (también YouTube Music), nunca los dos.
 
 | Método | Ruta | Cuerpo / query | Respuesta | Acceso |
 |---|---|---|---|---|
@@ -333,26 +322,41 @@ type SongInput = {
   author: string;                 // 0–120 ("" si no hay)
   sections: SongSectionInput[];   // 0–80, en orden ([] si es solo pista)
   audioId?: string | null;        // la pista: id de un MediaAsset de audio (§11). Omitido = null
+  youtubeId?: string | null;      // o la pista en YouTube: id del video, 11 caracteres [A-Za-z0-9_-]. Omitido = null
+  youtubeMusic?: boolean;         // el enlace era de YouTube Music (solo música). Omitido = false; sin youtubeId se guarda false
 };
 type SongSection = { id: string; label: string | null; text: string };
 type Song = {
   id: string; title: string; author: string;
   sections: SongSection[];        // [] si es solo pista
-  audio: MediaAsset | null;       // la pista (§11); null si es solo letra
+  audio: MediaAsset | null;       // la pista (§11); null si es solo letra o si está en YouTube
+  youtubeId: string | null;       // la pista en YouTube
+  youtubeMusic: boolean;          // de YouTube Music (solo música) o de YouTube (con video): cambia solo cómo se muestra
   createdAt: string; updatedAt: string;
 };
 type SongSummary = {
   id: string; title: string; author: string;
   sectionCount: number; firstLine: string | null;
   audio: MediaAsset | null;
+  youtubeId: string | null;
+  youtubeMusic: boolean;
   updatedAt: string;
 };
 ```
 
 - `search` busca sin acentos ni mayúsculas en título, autor y texto de las secciones; ordena por relevancia cuando hay búsqueda. `limit` máximo 100. Sin `sort`, se ordena por título.
 - Los títulos **no** son únicos (dos iglesias pueden cantar dos versiones). Dos canciones con el mismo título son dos letras distintas.
-- **Letra o pista**: sin secciones y sin `audioId` → 400 `VALIDATION_FAILED` (`errors.sections`: "Agrega la letra o
-  una pista.").
+- **Letra o pista**: sin secciones, sin `audioId` y sin `youtubeId` → 400 `VALIDATION_FAILED` (`errors.sections`:
+  "Agrega la letra o una pista."). `audioId` y `youtubeId` juntos → 400 (`errors.youtubeId`: "La pista es un audio o un
+  video de YouTube, no los dos."). Un `youtubeId` mal formado → 400 (`errors.youtubeId`: "Ese no es un video de
+  YouTube.").
+- **La pista en YouTube** no se descarga ni ocupa cuota: la consola la reproduce con el reproductor de YouTube (IFrame
+  Player API), **visible en la consola**, y las pantallas muestran la letra. Necesita internet. El cliente saca el id
+  del enlace (`youtube.com/watch?v=`, `youtu.be/`, `music.youtube.com/watch?v=`, `shorts/`; `youtubeMusic: true` si
+  era de `music.youtube.com`) y, antes de guardarlo,
+  conviene que revise con oEmbed (`https://www.youtube.com/oembed?format=json&url=…`) que el video existe y se puede
+  reproducir fuera de YouTube (401/403 = no se puede). La API solo valida el formato. Pasar de audio a YouTube con
+  `PUT` borra el audio anterior, como cualquier cambio de `audioId`.
 - **La pista** se sube como cualquier audio (§11: ticket, `PUT`, confirmar) y luego se asigna con `audioId`. Tiene que
   ser un audio vivo de la iglesia (`errors.audioId`: "Esa pista no existe.") y no ser ya de otra canción
   (`errors.audioId`: "Esa pista ya es de otra canción.").
@@ -450,7 +454,7 @@ Las consolas (iPad y Windows) trabajan **sin conexión**: guardan una copia loca
 
 ```ts
 type SyncPage = {
-  church: Church | null;          // presente si la iglesia (nombre, zona, módulos) cambió después de `since`
+  church: Church | null;          // presente si la iglesia (nombre, zona, proyección) cambió después de `since`
   changes: {
     people: Person[];
     serviceTypes: ServiceType[];
@@ -480,6 +484,9 @@ Reglas:
 
 ## 13. Biblia — `/bible`
 
+> **Fuera de servicio por ahora** (2026-10-19): las consolas no la muestran y estas rutas responden 404. Su código y
+> sus tablas siguen en la API para volver a activarla; lo de abajo describe cómo funcionaba.
+
 Texto: **Reina-Valera 1909** (dominio público), código `rvr1909`.
 
 | Método | Ruta | Respuesta |
@@ -505,9 +512,7 @@ type BibleDownload = {
 ```
 
 - Las consolas descargan `download` una vez (y de nuevo si cambia `version`) y buscan sin conexión.
-- Requieren sesión; no dependen del módulo `bible` de cada iglesia (el módulo solo oculta la función en la consola).
-- Con la Biblia apagada para todo Iris (`availableModules.bible = false`) todas estas rutas responden
-  404 `NOT_FOUND` «La Biblia no está disponible por ahora.».
+- Requieren sesión.
 
 ---
 
@@ -633,3 +638,60 @@ type AppVersionCheck = {
 - **Un fallo nunca bloquea a nadie.** Sin conexión, con la API caída o con cualquier error (incluido 400), la app abre
   normal: solo `updateRequired: true` obliga a actualizar. Nunca se muestra con un servicio en curso.
 - Sin fila para la plataforma, `updateRequired` es `false`.
+
+---
+
+## 18. Pantallas (televisores) — `/displays`
+
+Un televisor con navegador (o cualquier pantalla con internet) muestra lo que manda la consola, sin cables. Se
+vincula a la iglesia **una vez**, con un código como el de Netflix, y queda vinculado hasta que se lo desvincule.
+
+| Método | Ruta | Cuerpo / cabecera | Respuesta | Acceso |
+|---|---|---|---|---|
+| POST | `/displays/pairings` | — | 201 `DisplayPairing` | **Pública** (20/min por IP) |
+| GET | `/displays/pairings/:id` | cabecera `X-Pairing-Secret: <secret>` | `PairingStatus` | **Pública** |
+| POST | `/displays` | `{ code, name }` | 201 `Display` | Sesión |
+| GET | `/displays` | — | `Display[]` (por fecha de vinculación) | Sesión |
+| DELETE | `/displays/:id` | — | 204 | Sesión |
+| PUT | `/displays/state` | `{ frame?, preload?, clock }` | 204 | Sesión |
+| GET | `/displays/stream` | `Authorization: Bearer <token del televisor>` | canal SSE (`text/event-stream`) | Token del televisor |
+
+```ts
+type DisplayPairing = { id: string; code: string; secret: string; expiresAt: string };  // code: 6 de A–Z sin I/L/O y 2–9
+type PairingStatus =
+  | { status: "pending" }
+  | { status: "paired"; token: string; display: { id: string; name: string } };          // sale UNA vez
+type Display = { id: string; name: string; online: boolean; lastSeenAt: string | null; createdAt: string };
+```
+
+**Vincular**
+1. El televisor pide un código (`POST /displays/pairings`) y lo muestra en grande. Vence a los 10 minutos.
+2. Pregunta cada 2 s (`GET /displays/pairings/:id` con su `secret`) hasta recibir `paired`. Un código vencido, ya
+   recogido o con otro `secret` → 404 (pide uno nuevo).
+3. En la consola alguien escribe el código y un nombre (`POST /displays`; mayúsculas o minúsculas da igual).
+   Código inexistente, vencido o ya usado → 400 `VALIDATION_FAILED` (`errors.code`: "Ese código no existe o ya venció.").
+   `name` 1–60.
+4. El televisor recibe su `token` (una sola vez) y lo guarda. Con él abre el canal cada vez que se enciende.
+
+**El canal** (`GET /displays/stream`, Server-Sent Events). Eventos:
+- `state` `{ frame, preload, clock, receivedAt, now }` — al conectarse: lo último que mandó la consola (`frame: null`,
+  `preload: []` y horas `null` si todavía nada).
+- `frame` `{ frame, clock, receivedAt, now }` y `preload` `{ preload, clock, receivedAt, now }` — cada vez que la consola
+  manda algo.
+- Las horas (epoch ms): `clock` es el reloj de la consola al mandarlo, `receivedAt` el del API al recibirlo y `now` el
+  del API al enviar el evento. El televisor pasa una hora de la consola a la suya sumándole
+  `(receivedAt − clock) + (Date.now() − now)`; así los videos quedan en sincronía aunque los relojes difieran.
+- `bye` `{}` — lo desvincularon: borra su token y vuelve a pedir un código.
+- Cada 20 s llega un comentario (`: ok`) para mantenerlo abierto. Si se corta, el navegador se reconecta solo
+  (`retry: 2000`). Un token desvinculado o inválido → 401: el televisor vuelve a pedir un código.
+
+**Lo que manda la consola** (`PUT /displays/state`): el cuadro (`frame`) y/o la lista de archivos a precargar
+(`preload`), con `clock` = `Date.now()` de la consola al mandarlo. **El API no interpreta ni guarda en la base el cuadro
+ni la lista**: los reenvía a los televisores de la iglesia y recuerda el último (en memoria) para el que se conecte
+después. Su forma la definen los clientes (referencia: `ProjectionFrame` y `PreloadFile` en
+`atm-iris-web/src/features/projection/`). Las horas dentro del cuadro (`at` de un video) vienen en el reloj de la
+consola: el televisor las corrige como se explica arriba.
+
+- `online` es `true` mientras el televisor tiene el canal abierto. Desvincular (`DELETE`) cierra su canal en el acto.
+- El canal y las vinculaciones pendientes viven en memoria: un reinicio del API corta los canales (se reconectan
+  solos) y anula los códigos sin usar.

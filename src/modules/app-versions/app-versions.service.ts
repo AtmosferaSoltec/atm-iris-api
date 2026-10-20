@@ -12,7 +12,10 @@ import type { AppPlatform, AppVersionCheck } from './app-versions.types.js';
 export class AppVersionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async check(platform: AppPlatform, version: string): Promise<AppVersionCheck> {
+  async check(
+    platform: AppPlatform,
+    version: string,
+  ): Promise<AppVersionCheck> {
     const row = await this.prisma.appVersion.findUnique({
       where: { platform },
     });

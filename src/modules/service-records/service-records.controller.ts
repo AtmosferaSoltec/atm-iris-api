@@ -42,7 +42,8 @@ export class ServiceRecordsController {
   @ApiPaginated('ServiceRecord')
   list(
     @CurrentUser() user: AuthenticatedUser,
-    @Query(new ZodValidationPipe(listServiceRecordsSchema)) query: ListServiceRecordsQuery,
+    @Query(new ZodValidationPipe(listServiceRecordsSchema))
+    query: ListServiceRecordsQuery,
   ): Promise<Paginated<ServiceRecord>> {
     return this.records.list(user.churchId, query);
   }
@@ -66,7 +67,8 @@ export class ServiceRecordsController {
   async save(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ZodValidationPipe(recordIdSchema)) id: string,
-    @Body(new ZodValidationPipe(serviceRecordInputSchema)) dto: ServiceRecordInput,
+    @Body(new ZodValidationPipe(serviceRecordInputSchema))
+    dto: ServiceRecordInput,
     @Res({ passthrough: true }) response: Response,
   ): Promise<ServiceRecord> {
     const { record, isNew } = await this.records.save(user, id, dto);
@@ -75,13 +77,16 @@ export class ServiceRecordsController {
   }
 
   @Patch(':id/blocks/:blockId')
-  @ApiOperation({ summary: 'Ajustar la duración real o el responsable de un bloque' })
+  @ApiOperation({
+    summary: 'Ajustar la duración real o el responsable de un bloque',
+  })
   @ApiData('ServiceRecord')
   updateBlock(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Param('blockId') blockId: string,
-    @Body(new ZodValidationPipe(updateBlockRecordSchema)) dto: UpdateBlockRecordInput,
+    @Body(new ZodValidationPipe(updateBlockRecordSchema))
+    dto: UpdateBlockRecordInput,
   ): Promise<ServiceRecord> {
     return this.records.updateBlock(user.churchId, id, blockId, dto);
   }

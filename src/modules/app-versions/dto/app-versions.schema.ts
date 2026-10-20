@@ -4,7 +4,10 @@ import { z } from 'zod';
 export const VERSION_PATTERN = /^\d{1,5}(\.\d{1,5}){1,3}$/;
 
 export const appVersionQuerySchema = z.object({
-  platform: z.enum(['ios', 'windows'], 'La plataforma debe ser "ios" o "windows".'),
+  platform: z.enum(
+    ['ios', 'windows'],
+    'La plataforma debe ser "ios" o "windows".',
+  ),
   version: z
     .string('Indica la version de la app.')
     .trim()

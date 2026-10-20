@@ -95,7 +95,7 @@ export class MediaService {
     // simultaneas no pueden pasar las dos por el mismo hueco.
     await this.repository.withLock(user.churchId, async (tx) => {
       const [quota, used, pending] = await Promise.all([
-        this.repository.quotaBytes(user.churchId, tx),
+        this.repository.quotaBytes(),
         this.repository.usedBytes(user.churchId, tx),
         this.repository.pendingBytes(user.churchId, tx),
       ]);
@@ -300,7 +300,8 @@ export class MediaService {
         id,
         tx,
       );
-      if (current.kind === 'AUDIO') await this.releaseSongAudio(churchId, id, tx);
+      if (current.kind === 'AUDIO')
+        await this.releaseSongAudio(churchId, id, tx);
     });
   }
 
@@ -316,7 +317,12 @@ export class MediaService {
       return;
     }
     await this.repository.softDeleteSong(churchId, song.id, tx);
-    await this.servicePlan.softDeleteByRef(churchId, PlanItemKind.SONG, song.id, tx);
+    await this.servicePlan.softDeleteByRef(
+      churchId,
+      PlanItemKind.SONG,
+      song.id,
+      tx,
+    );
   }
 }
 

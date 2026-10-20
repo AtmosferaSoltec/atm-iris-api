@@ -67,7 +67,11 @@ export class S3StorageService extends StoragePort {
   ): Promise<string> {
     return getSignedUrl(
       this.signer,
-      new PutObjectCommand({ Bucket: this.bucket, Key: key, ContentType: contentType }),
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ContentType: contentType,
+      }),
       {
         expiresIn: expiresInSeconds,
         // El Content-Type entra en la firma: subir otro tipo que el declarado
@@ -106,7 +110,9 @@ export class S3StorageService extends StoragePort {
   }
 
   async deleteObject(key: string): Promise<void> {
-    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+    await this.client.send(
+      new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
+    );
   }
 
   async ping(): Promise<void> {
@@ -115,8 +121,8 @@ export class S3StorageService extends StoragePort {
 }
 
 function isNotFound(error: unknown): boolean {
-  const status = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata
-    ?.httpStatusCode;
+  const status = (error as { $metadata?: { httpStatusCode?: number } })
+    ?.$metadata?.httpStatusCode;
   return status === 404;
 }
 

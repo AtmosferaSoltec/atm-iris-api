@@ -62,7 +62,10 @@ export class MediaCleanupService {
 
     const byChurch = new Map<string, string[]>();
     for (const track of tracks) {
-      byChurch.set(track.churchId, [...(byChurch.get(track.churchId) ?? []), track.id]);
+      byChurch.set(track.churchId, [
+        ...(byChurch.get(track.churchId) ?? []),
+        track.id,
+      ]);
     }
     for (const [churchId, ids] of byChurch) {
       await this.repository.softDeleteOrphanTracks(churchId, ids);
@@ -77,7 +80,10 @@ export class MediaCleanupService {
     const byChurch = new Map<string, string[]>();
     for (const asset of assets) {
       await this.storage.deleteObject(asset.objectKey);
-      byChurch.set(asset.churchId, [...(byChurch.get(asset.churchId) ?? []), asset.id]);
+      byChurch.set(asset.churchId, [
+        ...(byChurch.get(asset.churchId) ?? []),
+        asset.id,
+      ]);
     }
     for (const [churchId, ids] of byChurch) {
       await this.repository.markObjectsDeleted(churchId, ids);

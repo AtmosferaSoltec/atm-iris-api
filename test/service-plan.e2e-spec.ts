@@ -47,25 +47,28 @@ describe('plan de servicio (e2e)', () => {
     expect(added2.body.data.position).toBe(1);
 
     const list = await api.get('/service-plan');
-    expect(list.body.data.map((item: { refId: string }) => item.refId)).toEqual([
-      songA.body.data.id,
-      songB.body.data.id,
-    ]);
+    expect(list.body.data.map((item: { refId: string }) => item.refId)).toEqual(
+      [songA.body.data.id, songB.body.data.id],
+    );
 
     // Reordenar: B pasa al frente.
-    const moved = await api.put(`/service-plan/${added2.body.data.id}/position`, {
-      position: 0,
-    });
+    const moved = await api.put(
+      `/service-plan/${added2.body.data.id}/position`,
+      {
+        position: 0,
+      },
+    );
     expect(moved.status).toBe(204);
 
     const reordered = await api.get('/service-plan');
-    expect(reordered.body.data.map((item: { refId: string }) => item.refId)).toEqual([
-      songB.body.data.id,
-      songA.body.data.id,
-    ]);
+    expect(
+      reordered.body.data.map((item: { refId: string }) => item.refId),
+    ).toEqual([songB.body.data.id, songA.body.data.id]);
 
     // Quitar uno.
-    expect((await api.delete(`/service-plan/${added1.body.data.id}`)).status).toBe(204);
+    expect(
+      (await api.delete(`/service-plan/${added1.body.data.id}`)).status,
+    ).toBe(204);
     expect((await api.get('/service-plan')).body.data).toHaveLength(1);
 
     // Vaciar todo.

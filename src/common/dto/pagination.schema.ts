@@ -14,7 +14,10 @@ export type Paginated<T> = { data: T[]; meta: PaginationMeta };
  * sincronizacion piden mas (`createPaginationSchema({ maxLimit: 500 })`)
  * porque los resumenes de la consola se calculan sobre muchos registros.
  */
-export function createPaginationSchema({ maxLimit = 100, defaultLimit = 20 } = {}) {
+export function createPaginationSchema({
+  maxLimit = 100,
+  defaultLimit = 20,
+} = {}) {
   return z.object({
     page: z.coerce
       .number('La página debe ser un número.')

@@ -63,12 +63,6 @@ const church = object({
   id: uuid,
   name: str(),
   timezone: str(),
-  modules: object({ bible: bool, multimedia: bool, timeControl: bool }),
-  availableModules: object({
-    bible: bool,
-    multimedia: bool,
-    timeControl: bool,
-  }),
   projection: object({
     fontFamily: str(),
     fontSizePt: int(),
@@ -122,6 +116,8 @@ const song = object({
   author: str(),
   sections: array(object({ id: uuid, label: nullable(str()), text: str() })),
   audio: songAudio,
+  youtubeId: nullable(str()),
+  youtubeMusic: bool,
   createdAt: date,
   updatedAt: date,
 });
@@ -133,6 +129,8 @@ const songSummary = object({
   sectionCount: int(),
   firstLine: nullable(str()),
   audio: songAudio,
+  youtubeId: nullable(str()),
+  youtubeMusic: bool,
   updatedAt: date,
 });
 
@@ -166,7 +164,9 @@ const serviceRecord = object({
       actualSeconds: int(),
       personId: nullable(uuid),
       personName: nullable(str()),
-      status: str({ enum: ['pending', 'running', 'completed', 'skipped', 'adjusted'] }),
+      status: str({
+        enum: ['pending', 'running', 'completed', 'skipped', 'adjusted'],
+      }),
       startedAt: nullable(date),
       endedAt: nullable(date),
     }),

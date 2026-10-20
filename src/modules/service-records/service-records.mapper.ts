@@ -4,9 +4,15 @@ import type {
   RecordStatus,
   ServiceRecord as ServiceRecordRow,
 } from '../../generated/prisma/client.js';
-import type { BlockStatusName, RecordStatusName, ServiceRecord } from './service-records.types.js';
+import type {
+  BlockStatusName,
+  RecordStatusName,
+  ServiceRecord,
+} from './service-records.types.js';
 
-export type ServiceRecordWithBlocks = ServiceRecordRow & { blocks: BlockRecordRow[] };
+export type ServiceRecordWithBlocks = ServiceRecordRow & {
+  blocks: BlockRecordRow[];
+};
 
 export const toBlockStatus = (status: BlockStatus): BlockStatusName =>
   status.toLowerCase() as BlockStatusName;

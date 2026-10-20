@@ -40,7 +40,8 @@ export class MediaController {
 
   @Post('uploads')
   @ApiOperation({
-    summary: 'Pedir una URL firmada para subir un archivo (valida tipo, tamaño y cuota)',
+    summary:
+      'Pedir una URL firmada para subir un archivo (valida tipo, tamaño y cuota)',
   })
   @ApiData('UploadTicket', { status: 201 })
   createUpload(
@@ -64,7 +65,9 @@ export class MediaController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Multimedia de la iglesia, la más reciente primero' })
+  @ApiOperation({
+    summary: 'Multimedia de la iglesia, la más reciente primero',
+  })
   @ApiPaginated('MediaAsset')
   list(
     @CurrentUser() user: AuthenticatedUser,

@@ -29,7 +29,11 @@ export class ServiceRecordsRepository {
     return this.lock.run(churchId, work);
   }
 
-  list(churchId: string, filters: RecordFilters, page: { skip: number; take: number }) {
+  list(
+    churchId: string,
+    filters: RecordFilters,
+    page: { skip: number; take: number },
+  ) {
     return this.prisma.serviceRecord.findMany({
       where: listWhere(churchId, filters),
       include: WITH_BLOCKS,
@@ -39,7 +43,9 @@ export class ServiceRecordsRepository {
   }
 
   count(churchId: string, filters: RecordFilters): Promise<number> {
-    return this.prisma.serviceRecord.count({ where: listWhere(churchId, filters) });
+    return this.prisma.serviceRecord.count({
+      where: listWhere(churchId, filters),
+    });
   }
 
   findActive(churchId: string, id: string, db: Db = this.prisma) {
@@ -79,7 +85,10 @@ export class ServiceRecordsRepository {
     serviceTypeId: string,
     db: Db = this.prisma,
   ): Promise<boolean> {
-    return (await db.serviceType.count({ where: { id: serviceTypeId, churchId } })) > 0;
+    return (
+      (await db.serviceType.count({ where: { id: serviceTypeId, churchId } })) >
+      0
+    );
   }
 
   findActivePerson(churchId: string, personId: string, db: Db = this.prisma) {
@@ -112,7 +121,12 @@ export class ServiceRecordsRepository {
   }
 
   /** Reemplazo completo de los bloques; actualizar el padre sube su version. */
-  async replace(churchId: string, id: string, input: ServiceRecordInput, tx: Tx) {
+  async replace(
+    churchId: string,
+    id: string,
+    input: ServiceRecordInput,
+    tx: Tx,
+  ) {
     await tx.blockRecord.deleteMany({ where: { serviceRecordId: id } });
     return tx.serviceRecord.update({
       where: { id, churchId },
@@ -133,7 +147,12 @@ export class ServiceRecordsRepository {
     churchId: string,
     recordId: string,
     blockId: string,
-    data: { actualSeconds?: number; status?: BlockStatus; personId?: string | null; personName?: string | null },
+    data: {
+      actualSeconds?: number;
+      status?: BlockStatus;
+      personId?: string | null;
+      personName?: string | null;
+    },
     tx: Tx,
   ) {
     await tx.blockRecord.update({
@@ -155,7 +174,10 @@ export class ServiceRecordsRepository {
   }
 }
 
-function listWhere(churchId: string, filters: RecordFilters): Prisma.ServiceRecordWhereInput {
+function listWhere(
+  churchId: string,
+  filters: RecordFilters,
+): Prisma.ServiceRecordWhereInput {
   return {
     churchId,
     deletedAt: null,

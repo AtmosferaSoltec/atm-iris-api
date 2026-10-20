@@ -56,10 +56,6 @@ function sessionRow(
       id: 'church-1',
       name: 'Iglesia Vida Nueva',
       timezone: 'America/Lima',
-      bibleEnabled: true,
-      multimediaEnabled: true,
-      timeControlEnabled: true,
-      storageQuotaBytes: 5368709120n,
       projectionFontFamily: 'system',
       projectionFontSizePt: 88,
       projectionDefaultBackground: null,
@@ -190,7 +186,10 @@ describe('AuthService', () => {
         isActive: true,
       });
       const wrong = ctx.service
-        .signIn({ email: 'x@y.org', password: 'la-mala', client: CLIENT }, ORIGIN)
+        .signIn(
+          { email: 'x@y.org', password: 'la-mala', client: CLIENT },
+          ORIGIN,
+        )
         .catch((e) => e);
 
       const errors = await Promise.all([missing, wrong]);

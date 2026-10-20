@@ -33,7 +33,7 @@ const songFields = z.object({
     .trim()
     .max(120, 'El autor tiene como máximo 120 caracteres.')
     .default(''),
-  // Vacio si la cancion es solo pista; `hasLyricsOrAudio` exige una de las dos.
+  // Vacio si la cancion es solo pista; `hasLyricsOrTrack` exige letra o pista.
   sections: z
     .array(sectionSchema, 'Las secciones deben ser una lista.')
     .max(80, 'Una canción tiene como máximo 80 secciones.')
@@ -43,14 +43,39 @@ const songFields = z.object({
     .nullable()
     .optional()
     .transform((value) => value ?? null),
+  youtubeMusic: z.boolean('youtubeMusic debe ser true o false.').default(false),
+  youtubeId: z
+    .string('La pista de YouTube debe ser texto.')
+    .regex(/^[\w-]{11}$/, 'Ese no es un video de YouTube.')
+    .nullable()
+    .optional()
+    .transform((value) => value ?? null),
 });
 
-/** Una cancion tiene letra, pista o ambas; nunca ninguna. */
-const hasLyricsOrAudio = (
-  song: { sections: unknown[]; audioId: string | null },
+/**
+ * Una cancion tiene letra, pista o ambas; nunca ninguna. La pista es un audio
+ * subido o un video de YouTube, no los dos.
+ */
+const hasLyricsOrTrack = (
+  song: {
+    sections: unknown[];
+    audioId: string | null;
+    youtubeId: string | null;
+  },
   ctx: z.RefinementCtx,
 ) => {
-  if (song.sections.length === 0 && song.audioId === null) {
+  if (song.audioId !== null && song.youtubeId !== null) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['youtubeId'],
+      message: 'La pista es un audio o un video de YouTube, no los dos.',
+    });
+  }
+  if (
+    song.sections.length === 0 &&
+    song.audioId === null &&
+    song.youtubeId === null
+  ) {
     ctx.addIssue({
       code: 'custom',
       path: ['sections'],
@@ -59,11 +84,11 @@ const hasLyricsOrAudio = (
   }
 };
 
-export const songInputSchema = songFields.superRefine(hasLyricsOrAudio);
+export const songInputSchema = songFields.superRefine(hasLyricsOrTrack);
 
 export const createSongSchema = songFields
   .extend({ id: z.uuid('El id debe ser un UUID.').optional() })
-  .superRefine(hasLyricsOrAudio);
+  .superRefine(hasLyricsOrTrack);
 
 export const listSongsSchema = createPaginationSchema().extend({
   search: z.string().trim().max(200).optional(),

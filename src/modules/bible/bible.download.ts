@@ -2,7 +2,12 @@ import { gzipSync } from 'node:zlib';
 
 import type { BibleBook, BibleDownload } from './bible.types.js';
 
-type VerseRow = { bookId: string; chapter: number; verse: number; text: string };
+type VerseRow = {
+  bookId: string;
+  chapter: number;
+  verse: number;
+  text: string;
+};
 
 /**
  * Arma la descarga completa (`chapters[c][v]`). Funcion pura: la usan el API

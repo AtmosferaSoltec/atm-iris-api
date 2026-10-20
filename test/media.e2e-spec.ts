@@ -3,7 +3,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { PrismaService } from '../src/database/prisma.service.js';
 import { StoragePort } from '../src/integrations/storage/storage.port.js';
-import { authed, cleanUp, createTestApp, isStorageUp, signUp } from './helpers.js';
+import { STORAGE_QUOTA_BYTES } from '../src/modules/church/storage.js';
+import {
+  authed,
+  cleanUp,
+  createTestApp,
+  isStorageUp,
+  signUp,
+} from './helpers.js';
 
 const storageUp = await isStorageUp();
 
@@ -20,7 +27,8 @@ describe.runIf(storageUp)('multimedia (e2e, requiere MinIO)', () => {
   afterAll(async () => {
     // Los objetos que dejo la prueba no los borra la cascada de la base.
     const storage = app.get(StoragePort);
-    for (const key of objectKeys) await storage.deleteObject(key).catch(() => undefined);
+    for (const key of objectKeys)
+      await storage.deleteObject(key).catch(() => undefined);
     await cleanUp(prisma);
     await app.close();
   });
@@ -64,17 +72,25 @@ describe.runIf(storageUp)('multimedia (e2e, requiere MinIO)', () => {
       durationSeconds: null,
       description: null,
     });
-    const asset = await prisma.mediaAsset.findUnique({ where: { id: confirmed.body.data.id } });
+    const asset = await prisma.mediaAsset.findUnique({
+      where: { id: confirmed.body.data.id },
+    });
     objectKeys.push(asset!.objectKey);
 
-    const download = await api.get(`/media/${confirmed.body.data.id}/download-url`);
+    const download = await api.get(
+      `/media/${confirmed.body.data.id}/download-url`,
+    );
     const file = await fetch(download.body.data.url);
     expect(Buffer.from(await file.arrayBuffer()).equals(bytes)).toBe(true);
 
     const church = await api.get('/church');
     expect(church.body.data.storage).toMatchObject({
       usedBytes: bytes.length,
-      breakdown: { musicBytes: 0, backgroundBytes: bytes.length, mediaBytes: 0 },
+      breakdown: {
+        musicBytes: 0,
+        backgroundBytes: bytes.length,
+        mediaBytes: 0,
+      },
     });
 
     const backgrounds = await api.get('/media?isBackground=true');
@@ -108,9 +124,21 @@ describe.runIf(storageUp)('multimedia (e2e, requiere MinIO)', () => {
     });
     expect(big.body.code).toBe('FILE_TOO_LARGE');
 
-    await prisma.church.update({
-      where: { id: owner.church.id },
-      data: { storageQuotaBytes: 1000n },
+    // The quota is the same for everyone (contract §6): an upload in progress takes all but 1000 bytes.
+    const user = await prisma.user.findFirstOrThrow({
+      where: { email: owner.email },
+    });
+    await prisma.mediaUpload.create({
+      data: {
+        churchId: owner.church.id,
+        kind: 'VIDEO',
+        fileName: 'reserva.mp4',
+        contentType: 'video/mp4',
+        sizeBytes: STORAGE_QUOTA_BYTES - 1000n,
+        objectKey: `churches/${owner.church.id}/media/reserva`,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        createdByUserId: user.id,
+      },
     });
     const first = await api.post('/media/uploads', {
       kind: 'image',
@@ -128,7 +156,10 @@ describe.runIf(storageUp)('multimedia (e2e, requiere MinIO)', () => {
     expect(second.body.code).toBe('STORAGE_QUOTA_EXCEEDED');
 
     // Confirmar sin haber subido el archivo.
-    const missing = await api.post('/media', { uploadId: first.body.data.uploadId, title: 'x' });
+    const missing = await api.post('/media', {
+      uploadId: first.body.data.uploadId,
+      title: 'x',
+    });
     expect(missing.body.code).toBe('UPLOAD_NOT_FOUND');
   });
 });

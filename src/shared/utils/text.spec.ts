@@ -32,6 +32,11 @@ describe('searchText', () => {
 describe('byName', () => {
   it('ordena en espanol, sin importar acentos ni mayusculas', () => {
     const names = ['Zarza', 'Álamo', 'beto', 'Ana'];
-    expect([...names].sort(byName((n) => n))).toEqual(['Álamo', 'Ana', 'beto', 'Zarza']);
+    expect([...names].sort(byName((n) => n))).toEqual([
+      'Álamo',
+      'Ana',
+      'beto',
+      'Zarza',
+    ]);
   });
 });

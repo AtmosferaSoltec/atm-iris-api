@@ -83,7 +83,13 @@ export class ServiceRecordsService {
       await this.validate(user.churchId, id, input, tx);
 
       if (!existing) {
-        const row = await this.repository.create(user.churchId, id, input, user.sessionId, tx);
+        const row = await this.repository.create(
+          user.churchId,
+          id,
+          input,
+          user.sessionId,
+          tx,
+        );
         return { record: toServiceRecord(row), isNew: true };
       }
 
@@ -107,19 +113,29 @@ export class ServiceRecordsService {
       if (!record?.blocks.some((block) => block.id === blockId)) {
         throw notFound('Ese bloque no existe en el registro.');
       }
-      if (input.actualSeconds !== undefined && record.status === 'IN_PROGRESS') {
+      if (
+        input.actualSeconds !== undefined &&
+        record.status === 'IN_PROGRESS'
+      ) {
         throw validationFailed({
-          actualSeconds: 'El servicio sigue en curso: ajusta el tiempo cuando termine.',
+          actualSeconds:
+            'El servicio sigue en curso: ajusta el tiempo cuando termine.',
         });
       }
 
-      let person: { personId: string | null; personName: string | null } | undefined;
+      let person:
+        { personId: string | null; personName: string | null } | undefined;
       if (input.personId !== undefined) {
         if (input.personId === null) {
           person = { personId: null, personName: null };
         } else {
-          const found = await this.repository.findActivePerson(churchId, input.personId, tx);
-          if (!found) throw validationFailed({ personId: 'Esa persona no existe.' });
+          const found = await this.repository.findActivePerson(
+            churchId,
+            input.personId,
+            tx,
+          );
+          if (!found)
+            throw validationFailed({ personId: 'Esa persona no existe.' });
           person = { personId: input.personId, personName: found.name };
         }
       }
@@ -130,7 +146,10 @@ export class ServiceRecordsService {
         blockId,
         {
           ...(input.actualSeconds !== undefined
-            ? { actualSeconds: input.actualSeconds, status: 'ADJUSTED' as const }
+            ? {
+                actualSeconds: input.actualSeconds,
+                status: 'ADJUSTED' as const,
+              }
             : {}),
           ...person,
         },
@@ -154,8 +173,16 @@ export class ServiceRecordsService {
     input: ServiceRecordInput,
     tx: Tx,
   ): Promise<void> {
-    if (!(await this.repository.serviceTypeBelongs(churchId, input.serviceTypeId, tx))) {
-      throw validationFailed({ serviceTypeId: 'Ese tipo de servicio no existe.' });
+    if (
+      !(await this.repository.serviceTypeBelongs(
+        churchId,
+        input.serviceTypeId,
+        tx,
+      ))
+    ) {
+      throw validationFailed({
+        serviceTypeId: 'Ese tipo de servicio no existe.',
+      });
     }
 
     const owners = await this.repository.findBlockOwners(
@@ -175,7 +202,10 @@ export class ServiceRecordsService {
  * (`adjusted`) no es igual al `completed` que mando la consola: reenviarlo
  * desharia el ajuste, y para eso hace falta `records.manage`.
  */
-export function isSameContent(row: ServiceRecordWithBlocks, input: ServiceRecordInput): boolean {
+export function isSameContent(
+  row: ServiceRecordWithBlocks,
+  input: ServiceRecordInput,
+): boolean {
   const current = toServiceRecord(row);
   if (
     current.status !== input.status ||

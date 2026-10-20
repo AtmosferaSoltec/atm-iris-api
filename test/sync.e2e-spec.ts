@@ -5,7 +5,7 @@ import type { PrismaService } from '../src/database/prisma.service.js';
 import { authed, cleanUp, createTestApp, signUp } from './helpers.js';
 
 type Page = {
-  church: { modules: { bible: boolean; multimedia: boolean } } | null;
+  church: { name: string } | null;
   changes: Record<string, { id: string; name?: string }[]>;
   deleted: Record<string, string[]>;
   cursor: string;
@@ -30,8 +30,12 @@ describe('sincronización (e2e)', () => {
     const page = async (since: string, limit = 200): Promise<Page> =>
       (await api.get(`/sync/changes?since=${since}&limit=${limit}`)).body.data;
 
-    for (const name of ['Ana', 'Beto', 'Carla', 'Dario']) await api.post('/people', { name });
-    await api.post('/songs', { title: 'Sublime gracia', sections: [{ text: 'Sublime gracia' }] });
+    for (const name of ['Ana', 'Beto', 'Carla', 'Dario'])
+      await api.post('/people', { name });
+    await api.post('/songs', {
+      title: 'Sublime gracia',
+      sections: [{ text: 'Sublime gracia' }],
+    });
 
     // Copia completa en paginas de 2.
     let cursor = '0';
@@ -63,29 +67,23 @@ describe('sincronización (e2e)', () => {
     cursor = afterDelete.cursor;
 
     // Renombrar: llega con el nombre nuevo y el cursor avanza.
-    const ana = (await api.get('/people')).body.data.find((p: { name: string }) => p.name === 'Ana');
+    const ana = (await api.get('/people')).body.data.find(
+      (p: { name: string }) => p.name === 'Ana',
+    );
     await api.patch(`/people/${ana.id}`, { name: 'Ana María' });
     const renamed = await page(cursor);
     expect(renamed.changes.people!.map((p) => p.name)).toEqual(['Ana María']);
     expect(BigInt(renamed.cursor) > BigInt(cursor)).toBe(true);
     cursor = renamed.cursor;
 
-    // Cambiar modulos trae la iglesia.
-    await api.put('/church/modules', { bible: true, multimedia: false, timeControl: true });
-    const modules = await page(cursor);
-    expect(modules.church?.modules.multimedia).toBe(false);
-    expect(modules.church?.modules.bible).toBe(false);
-    cursor = modules.cursor;
+    // Cambiar la iglesia la trae en el feed.
+    await api.patch('/church', { name: 'Renombrada' });
+    const renamedChurch = await page(cursor);
+    expect(renamedChurch.church?.name).toBe('Renombrada');
+    cursor = renamedChurch.cursor;
 
-    // Encender la Biblia para todo Iris, a mano en la base, llega a las consolas sin otro cambio.
-    await prisma.systemFeature.update({ where: { key: 'bible' }, data: { enabled: true } });
-    try {
-      const switched = await page(cursor);
-      expect(switched.church?.modules.bible).toBe(true);
-    } finally {
-      await prisma.systemFeature.update({ where: { key: 'bible' }, data: { enabled: false } });
-    }
-
-    expect((await api.get('/sync/changes?since=-1')).body.code).toBe('VALIDATION_FAILED');
+    expect((await api.get('/sync/changes?since=-1')).body.code).toBe(
+      'VALIDATION_FAILED',
+    );
   });
 });

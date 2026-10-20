@@ -17,6 +17,8 @@ const SUMMARY_SELECT = {
   id: true,
   title: true,
   author: true,
+  youtubeId: true,
+  youtubeMusic: true,
   updatedAt: true,
   sections: { where: { position: 0 }, select: { text: true } },
   audio: true,
@@ -187,6 +189,8 @@ function columns(input: SongInput, keys: SongKeys) {
     titleKey: keys.titleKey,
     author: input.author,
     audioId: input.audioId,
+    youtubeId: input.youtubeId,
+    youtubeMusic: input.youtubeId !== null && input.youtubeMusic,
     searchText: keys.searchText,
   };
 }

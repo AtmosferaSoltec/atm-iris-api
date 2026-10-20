@@ -43,7 +43,7 @@ Una **iglesia** es el espacio de datos (tenant) y tiene **una sola cuenta**: qui
 esa iglesia. No hay roles, equipo ni invitaciones. El `churchId` sale siempre del token, nunca de la URL ni del cuerpo.
 
 ```text
-Church        { id, name, timezone, modules, storageQuota }
+Church        { id, name, timezone, projection }       // sin módulos ni planes: todo para todas, 5 GiB fijos
 User          { id, churchId, email (único, minúsculas), passwordHash, fullName, isActive }
 Session       { id, userId, churchId, platform: web|ios|windows, deviceName?, refreshGeneration,
                 lastUsedAt, expiresAt, revokedAt?, revokedReason? }       // una por dispositivo
@@ -58,7 +58,6 @@ PasswordResetCode { id, userId, codeHash, expiresAt, verificationAttempts, usedA
 ### 2.2 Contenido de la iglesia
 
 ```text
-ChurchModules   { bible, multimedia, timeControl }      // Canciones (letra y pista) siempre activo. Por defecto: los tres en true
 Person          { id, churchId, name }
 ServiceType     { id, churchId, name, color, schedule?, blocks: [BlockTemplate] }
   Schedule = { weekday (1 = dom … 7 = sáb), hour (0–23), minute (0–59) }   // hora local de la iglesia

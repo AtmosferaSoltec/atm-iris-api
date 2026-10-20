@@ -46,7 +46,15 @@ const inProgress: ServiceRecordInput = {
 };
 
 /** Una fila guardada a partir del input. */
-const row = (churchId = 'church-1', overrides: Partial<{ status: 'COMPLETED' | 'ADJUSTED'; recordStatus: 'IN_PROGRESS' | 'FINISHED'; actualSeconds: number; deletedAt: Date | null }> = {}) => ({
+const row = (
+  churchId = 'church-1',
+  overrides: Partial<{
+    status: 'COMPLETED' | 'ADJUSTED';
+    recordStatus: 'IN_PROGRESS' | 'FINISHED';
+    actualSeconds: number;
+    deletedAt: Date | null;
+  }> = {},
+) => ({
   id: 'r-1',
   churchId,
   date: input.date,
@@ -86,7 +94,9 @@ function setup() {
   };
   return {
     repository,
-    service: new ServiceRecordsService(repository as unknown as ServiceRecordsRepository),
+    service: new ServiceRecordsService(
+      repository as unknown as ServiceRecordsRepository,
+    ),
   };
 }
 
@@ -100,7 +110,13 @@ describe('ServiceRecordsService · PUT idempotente', () => {
     ctx.repository.findAnyById.mockResolvedValue(null);
     const result = await ctx.service.save(user, 'r-1', input);
     expect(result.isNew).toBe(true);
-    expect(ctx.repository.create).toHaveBeenCalledWith('church-1', 'r-1', input, 's-1', 'tx');
+    expect(ctx.repository.create).toHaveBeenCalledWith(
+      'church-1',
+      'r-1',
+      input,
+      's-1',
+      'tx',
+    );
   });
 
   it('existe igual → reintento: 200 sin escribir', async () => {
@@ -112,28 +128,41 @@ describe('ServiceRecordsService · PUT idempotente', () => {
   });
 
   it('existe distinto → lo reemplaza (200)', async () => {
-    ctx.repository.findAnyById.mockResolvedValue(row('church-1', { actualSeconds: 999 }));
+    ctx.repository.findAnyById.mockResolvedValue(
+      row('church-1', { actualSeconds: 999 }),
+    );
     const result = await ctx.service.save(user, 'r-1', input);
     expect(result.isNew).toBe(false);
     expect(ctx.repository.replace).toHaveBeenCalled();
   });
 
   it('un bloque ya ajustado no cuenta como igual al completed reenviado', async () => {
-    ctx.repository.findAnyById.mockResolvedValue(row('church-1', { status: 'ADJUSTED' }));
+    ctx.repository.findAnyById.mockResolvedValue(
+      row('church-1', { status: 'ADJUSTED' }),
+    );
     const result = await ctx.service.save(user, 'r-1', input);
     expect(result.isNew).toBe(false);
     expect(ctx.repository.replace).toHaveBeenCalled();
   });
 
   it('en curso → terminado: lo reemplaza', async () => {
-    ctx.repository.findAnyById.mockResolvedValue(row('church-1', { recordStatus: 'IN_PROGRESS' }));
+    ctx.repository.findAnyById.mockResolvedValue(
+      row('church-1', { recordStatus: 'IN_PROGRESS' }),
+    );
     await ctx.service.save(user, 'r-1', input);
-    expect(ctx.repository.replace).toHaveBeenCalledWith('church-1', 'r-1', input, 'tx');
+    expect(ctx.repository.replace).toHaveBeenCalledWith(
+      'church-1',
+      'r-1',
+      input,
+      'tx',
+    );
   });
 
   it('terminado → en curso: 409 RECORD_FINISHED, una consola atrasada no lo reabre', async () => {
     ctx.repository.findAnyById.mockResolvedValue(row());
-    await expect(ctx.service.save(user, 'r-1', inProgress)).rejects.toMatchObject({
+    await expect(
+      ctx.service.save(user, 'r-1', inProgress),
+    ).rejects.toMatchObject({
       response: { code: 'RECORD_FINISHED' },
     });
     expect(ctx.repository.replace).not.toHaveBeenCalled();
@@ -147,7 +176,9 @@ describe('ServiceRecordsService · PUT idempotente', () => {
   });
 
   it('borrado → 404', async () => {
-    ctx.repository.findAnyById.mockResolvedValue(row('church-1', { deletedAt: new Date() }));
+    ctx.repository.findAnyById.mockResolvedValue(
+      row('church-1', { deletedAt: new Date() }),
+    );
     await expect(ctx.service.save(user, 'r-1', input)).rejects.toMatchObject({
       response: { code: 'NOT_FOUND' },
     });
@@ -155,9 +186,14 @@ describe('ServiceRecordsService · PUT idempotente', () => {
 
   it('un id de bloque de otro registro → 409 ID_CONFLICT en blocks.0.id', async () => {
     ctx.repository.findAnyById.mockResolvedValue(null);
-    ctx.repository.findBlockOwners.mockResolvedValue([{ id: 'b-1', serviceRecordId: 'otro' }]);
+    ctx.repository.findBlockOwners.mockResolvedValue([
+      { id: 'b-1', serviceRecordId: 'otro' },
+    ]);
     await expect(ctx.service.save(user, 'r-1', input)).rejects.toMatchObject({
-      response: { code: 'ID_CONFLICT', errors: { 'blocks.0.id': expect.any(String) } },
+      response: {
+        code: 'ID_CONFLICT',
+        errors: { 'blocks.0.id': expect.any(String) },
+      },
     });
   });
 });

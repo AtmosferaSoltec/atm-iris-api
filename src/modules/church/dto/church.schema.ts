@@ -28,12 +28,6 @@ export const updateChurchSchema = z
     message: 'No hay nada que cambiar.',
   });
 
-export const churchModulesSchema = z.object({
-  bible: z.boolean('Indica si la Biblia está activa.'),
-  multimedia: z.boolean('Indica si Multimedia está activo.'),
-  timeControl: z.boolean('Indica si Control de tiempo está activo.'),
-});
-
 /** Vacio o solo espacios cuenta como "ninguno": vuelve a negro. */
 const defaultBackgroundId = z
   .string()
@@ -48,11 +42,16 @@ export const updateProjectionSchema = z.object({
   fontSizePt: z
     .number('Indica el tamaño en puntos.')
     .int('El tamaño debe ser un número entero.')
-    .min(PROJECTION_FONT_SIZE_PT.min, `El tamaño mínimo es ${PROJECTION_FONT_SIZE_PT.min}.`)
-    .max(PROJECTION_FONT_SIZE_PT.max, `El tamaño máximo es ${PROJECTION_FONT_SIZE_PT.max}.`),
+    .min(
+      PROJECTION_FONT_SIZE_PT.min,
+      `El tamaño mínimo es ${PROJECTION_FONT_SIZE_PT.min}.`,
+    )
+    .max(
+      PROJECTION_FONT_SIZE_PT.max,
+      `El tamaño máximo es ${PROJECTION_FONT_SIZE_PT.max}.`,
+    ),
   defaultBackgroundId,
 });
 
 export type UpdateChurchInput = z.infer<typeof updateChurchSchema>;
-export type ChurchModulesInput = z.infer<typeof churchModulesSchema>;
 export type UpdateProjectionInput = z.infer<typeof updateProjectionSchema>;

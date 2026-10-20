@@ -17,7 +17,9 @@ export function resolveStorageService(
 ): StoragePort {
   const endpoint = config.get('STORAGE_ENDPOINT', { infer: true });
   const accessKeyId = config.get('STORAGE_ACCESS_KEY_ID', { infer: true });
-  const secretAccessKey = config.get('STORAGE_SECRET_ACCESS_KEY', { infer: true });
+  const secretAccessKey = config.get('STORAGE_SECRET_ACCESS_KEY', {
+    infer: true,
+  });
 
   if (endpoint && accessKeyId && secretAccessKey) {
     return new S3StorageService({
@@ -26,7 +28,9 @@ export function resolveStorageService(
       STORAGE_ACCESS_KEY_ID: accessKeyId,
       STORAGE_SECRET_ACCESS_KEY: secretAccessKey,
       STORAGE_BUCKET: config.get('STORAGE_BUCKET', { infer: true }),
-      STORAGE_FORCE_PATH_STYLE: config.get('STORAGE_FORCE_PATH_STYLE', { infer: true }),
+      STORAGE_FORCE_PATH_STYLE: config.get('STORAGE_FORCE_PATH_STYLE', {
+        infer: true,
+      }),
       // `||` y no `??`: si la variable validada queda sin valor, `ConfigService`
       // devuelve el texto crudo de `process.env`, que puede ser "".
       STORAGE_PUBLIC_ENDPOINT:

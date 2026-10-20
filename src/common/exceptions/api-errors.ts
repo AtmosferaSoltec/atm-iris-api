@@ -19,7 +19,8 @@ export const notFound = (message = 'No encontramos lo que buscabas.') =>
 export const idConflict = (field = 'id') =>
   new ConflictException({
     code: API_ERROR_CODES.ID_CONFLICT,
-    message: 'Ese identificador ya está en uso. Genera uno nuevo e inténtalo otra vez.',
+    message:
+      'Ese identificador ya está en uso. Genera uno nuevo e inténtalo otra vez.',
     errors: { [field]: 'Ese identificador ya está en uso.' },
   });
 

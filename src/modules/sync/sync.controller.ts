@@ -21,7 +21,8 @@ export class SyncController {
   // por IP (300/min) cortaria una iglesia grande a la mitad.
   @SkipThrottle()
   @ApiOperation({
-    summary: 'Cambios y borrados desde el cursor, para la copia local de las consolas',
+    summary:
+      'Cambios y borrados desde el cursor, para la copia local de las consolas',
   })
   @ApiData('SyncPage')
   changes(

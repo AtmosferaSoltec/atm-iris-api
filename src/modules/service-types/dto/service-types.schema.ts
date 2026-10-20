@@ -8,7 +8,11 @@ const scheduleSchema = z.object({
     .int()
     .min(1, 'El día va de 1 (domingo) a 7 (sábado).')
     .max(7, 'El día va de 1 (domingo) a 7 (sábado).'),
-  hour: z.number('Elige la hora.').int().min(0, 'Hora inválida.').max(23, 'Hora inválida.'),
+  hour: z
+    .number('Elige la hora.')
+    .int()
+    .min(0, 'Hora inválida.')
+    .max(23, 'Hora inválida.'),
   minute: z
     .number('Elige los minutos.')
     .int()

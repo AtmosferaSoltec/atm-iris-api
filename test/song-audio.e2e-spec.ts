@@ -4,7 +4,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from '../src/database/prisma.service.js';
 import { StoragePort } from '../src/integrations/storage/storage.port.js';
 import { MediaCleanupService } from '../src/modules/media/media-cleanup.service.js';
-import { authed, cleanUp, createTestApp, isStorageUp, signUp } from './helpers.js';
+import {
+  authed,
+  cleanUp,
+  createTestApp,
+  isStorageUp,
+  signUp,
+} from './helpers.js';
 
 const storageUp = await isStorageUp();
 
@@ -20,7 +26,8 @@ describe.runIf(storageUp)('canciones con pista (e2e, requiere MinIO)', () => {
 
   afterAll(async () => {
     const storage = app.get(StoragePort);
-    for (const key of objectKeys) await storage.deleteObject(key).catch(() => undefined);
+    for (const key of objectKeys)
+      await storage.deleteObject(key).catch(() => undefined);
     await cleanUp(prisma);
     await app.close();
   });
@@ -44,7 +51,9 @@ describe.runIf(storageUp)('canciones con pista (e2e, requiere MinIO)', () => {
       durationSeconds: 215,
     });
     expect(confirmed.status).toBe(201);
-    const asset = await prisma.mediaAsset.findUnique({ where: { id: confirmed.body.data.id } });
+    const asset = await prisma.mediaAsset.findUnique({
+      where: { id: confirmed.body.data.id },
+    });
     objectKeys.push(asset!.objectKey);
     return { id: confirmed.body.data.id as string, size: bytes.length };
   }
@@ -53,7 +62,11 @@ describe.runIf(storageUp)('canciones con pista (e2e, requiere MinIO)', () => {
     const api = authed(app, (await signUp(app)).accessToken);
 
     // Ni letra ni pista: no es una cancion.
-    const empty = await api.post('/songs', { title: 'Vacía', author: '', sections: [] });
+    const empty = await api.post('/songs', {
+      title: 'Vacía',
+      author: '',
+      sections: [],
+    });
     expect(empty.status).toBe(400);
     expect(empty.body.errors.sections).toBe('Agrega la letra o una pista.');
 
@@ -110,14 +123,26 @@ describe.runIf(storageUp)('canciones con pista (e2e, requiere MinIO)', () => {
     expect(replaced.status).toBe(200);
     expect(replaced.body.data.audio.id).toBe(second.id);
     expect((await api.get(`/media/${first.id}`)).status).toBe(404);
-    expect((await api.get('/church')).body.data.storage.usedBytes).toBe(second.size);
+    expect((await api.get('/church')).body.data.storage.usedBytes).toBe(
+      second.size,
+    );
 
     // El plan recibe la cancion (con su pista), nunca la pista suelta.
-    const looseTrack = await api.post('/service-plan', { kind: 'media', refId: second.id });
+    const looseTrack = await api.post('/service-plan', {
+      kind: 'media',
+      refId: second.id,
+    });
     expect(looseTrack.status).toBe(400);
-    expect(looseTrack.body.errors.refId).toBe('Las pistas se agregan con su canción.');
+    expect(looseTrack.body.errors.refId).toBe(
+      'Las pistas se agregan con su canción.',
+    );
     expect(
-      (await api.post('/service-plan', { kind: 'song', refId: onlyTrack.body.data.id })).status,
+      (
+        await api.post('/service-plan', {
+          kind: 'song',
+          refId: onlyTrack.body.data.id,
+        })
+      ).status,
     ).toBe(201);
 
     const sync = await api.get('/sync/changes?since=0');
@@ -127,10 +152,96 @@ describe.runIf(storageUp)('canciones con pista (e2e, requiere MinIO)', () => {
     expect(synced.audio.id).toBe(second.id);
 
     // Borrar la cancion borra su pista y su lugar en el plan.
-    expect((await api.delete(`/songs/${onlyTrack.body.data.id}`)).status).toBe(204);
+    expect((await api.delete(`/songs/${onlyTrack.body.data.id}`)).status).toBe(
+      204,
+    );
     expect((await api.get(`/media/${second.id}`)).status).toBe(404);
     expect((await api.get('/church')).body.data.storage.usedBytes).toBe(0);
     expect((await api.get('/service-plan')).body.data).toHaveLength(0);
+  });
+
+  it('la pista en YouTube: solo el id, sin cuota; reemplaza al audio subido', async () => {
+    const api = authed(app, (await signUp(app)).accessToken);
+
+    const song = await api.post('/songs', {
+      title: 'Gracias',
+      author: 'Hillsong',
+      sections: [],
+      youtubeId: 'aqz-KE-bpKQ',
+    });
+    expect(song.status).toBe(201);
+    expect(song.body.data).toMatchObject({
+      sections: [],
+      audio: null,
+      youtubeId: 'aqz-KE-bpKQ',
+      youtubeMusic: false,
+    });
+
+    // De YouTube Music: solo cambia como se muestra.
+    const music = await api.post('/songs', {
+      title: 'Mi roca',
+      author: '',
+      sections: [],
+      youtubeId: 'aqz-KE-bpKQ',
+      youtubeMusic: true,
+    });
+    expect(music.body.data.youtubeMusic).toBe(true);
+    const lyricsOnly = await api.put(`/songs/${music.body.data.id}`, {
+      title: 'Mi roca',
+      author: '',
+      sections: [{ label: null, text: 'Mi roca' }],
+      youtubeMusic: true,
+    });
+    expect(lyricsOnly.body.data).toMatchObject({
+      youtubeId: null,
+      youtubeMusic: false,
+    });
+    expect(
+      (await api.get('/songs?search=gracias')).body.data[0].youtubeId,
+    ).toBe('aqz-KE-bpKQ');
+
+    const malformed = await api.put(`/songs/${song.body.data.id}`, {
+      title: 'Gracias',
+      author: '',
+      sections: [],
+      youtubeId: 'https://youtu.be/aqz-KE-bpKQ',
+    });
+    expect(malformed.body.errors.youtubeId).toBe(
+      'Ese no es un video de YouTube.',
+    );
+
+    const audio = await uploadAudio(api, 'Gracias (pista)');
+    const both = await api.put(`/songs/${song.body.data.id}`, {
+      title: 'Gracias',
+      author: '',
+      sections: [],
+      audioId: audio.id,
+      youtubeId: 'aqz-KE-bpKQ',
+    });
+    expect(both.status).toBe(400);
+    expect(both.body.errors.youtubeId).toBe(
+      'La pista es un audio o un video de YouTube, no los dos.',
+    );
+
+    // Del audio subido a YouTube: el audio se borra y libera el espacio.
+    await api.put(`/songs/${song.body.data.id}`, {
+      title: 'Gracias',
+      author: '',
+      sections: [],
+      audioId: audio.id,
+    });
+    const toYouTube = await api.put(`/songs/${song.body.data.id}`, {
+      title: 'Gracias',
+      author: '',
+      sections: [],
+      youtubeId: 'aqz-KE-bpKQ',
+    });
+    expect(toYouTube.body.data).toMatchObject({
+      audio: null,
+      youtubeId: 'aqz-KE-bpKQ',
+    });
+    expect((await api.get(`/media/${audio.id}`)).status).toBe(404);
+    expect((await api.get('/church')).body.data.storage.usedBytes).toBe(0);
   });
 
   it('borrar la pista desde multimedia: queda la letra, o se va la cancion si era solo pista', async () => {
@@ -155,9 +266,14 @@ describe.runIf(storageUp)('canciones con pista (e2e, requiere MinIO)', () => {
       sections: [],
       audioId: alone.id,
     });
-    await api.post('/service-plan', { kind: 'song', refId: trackOnly.body.data.id });
+    await api.post('/service-plan', {
+      kind: 'song',
+      refId: trackOnly.body.data.id,
+    });
     expect((await api.delete(`/media/${alone.id}`)).status).toBe(204);
-    expect((await api.get(`/songs/${trackOnly.body.data.id}`)).status).toBe(404);
+    expect((await api.get(`/songs/${trackOnly.body.data.id}`)).status).toBe(
+      404,
+    );
     expect((await api.get('/service-plan')).body.data).toHaveLength(0);
   });
 
@@ -165,7 +281,12 @@ describe.runIf(storageUp)('canciones con pista (e2e, requiere MinIO)', () => {
     const api = authed(app, (await signUp(app)).accessToken);
     const orphan = await uploadAudio(api, 'Nunca guardada');
     const used = await uploadAudio(api, 'Guardada');
-    await api.post('/songs', { title: 'Guardada', author: '', sections: [], audioId: used.id });
+    await api.post('/songs', {
+      title: 'Guardada',
+      author: '',
+      sections: [],
+      audioId: used.id,
+    });
 
     const dayAgo = new Date(Date.now() - 25 * 60 * 60 * 1000);
     await prisma.mediaAsset.updateMany({

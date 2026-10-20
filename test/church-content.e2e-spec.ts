@@ -19,15 +19,12 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
     await app.close();
   });
 
-  it('GET /church con la forma del contrato y cambios de ajustes y módulos', async () => {
+  it('GET /church con la forma del contrato y cambios de ajustes', async () => {
     const api = authed(app, (await signUp(app)).accessToken);
 
     const church = await api.get('/church');
     expect(church.body.data).toMatchObject({
       timezone: 'America/Lima',
-      // La Biblia esta apagada para todo Iris (system_features): la iglesia no la ve.
-      modules: { bible: false, multimedia: true, timeControl: true },
-      availableModules: { bible: false, multimedia: true, timeControl: true },
       storage: {
         usedBytes: 0,
         quotaBytes: 5368709120,
@@ -40,24 +37,51 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
       defaultBackgroundId: null,
     });
 
-    expect((await api.patch('/church', { timezone: 'Marte/Base' })).status).toBe(400);
-    const patched = await api.patch('/church', { name: 'Nueva', timezone: 'America/Bogota' });
-    expect(patched.body.data).toMatchObject({ name: 'Nueva', timezone: 'America/Bogota' });
-
-    const modules = await api.put('/church/modules', {
-      bible: false,
-      multimedia: true,
-      timeControl: false,
+    expect(
+      (await api.patch('/church', { timezone: 'Marte/Base' })).status,
+    ).toBe(400);
+    const patched = await api.patch('/church', {
+      name: 'Nueva',
+      timezone: 'America/Bogota',
     });
-    expect(modules.body.data.modules).toEqual({ bible: false, multimedia: true, timeControl: false });
+    expect(patched.body.data).toMatchObject({
+      name: 'Nueva',
+      timezone: 'America/Bogota',
+    });
+    // Sin módulos: todas las iglesias tienen todo (contrato §6).
+    expect(patched.body.data.modules).toBeUndefined();
+    expect((await api.put('/church/modules', { bible: true })).status).toBe(
+      404,
+    );
   });
 
   it('PUT /church/projection valida y guarda tipografía, tamaño y fondo por defecto', async () => {
     const api = authed(app, (await signUp(app)).accessToken);
 
-    expect((await api.put('/church/projection', { fontFamily: 'inventada', fontSizePt: 88 })).status).toBe(400);
-    expect((await api.put('/church/projection', { fontFamily: 'georgia', fontSizePt: 20 })).status).toBe(400);
-    expect((await api.put('/church/projection', { fontFamily: 'georgia', fontSizePt: 300 })).status).toBe(400);
+    expect(
+      (
+        await api.put('/church/projection', {
+          fontFamily: 'inventada',
+          fontSizePt: 88,
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await api.put('/church/projection', {
+          fontFamily: 'georgia',
+          fontSizePt: 20,
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await api.put('/church/projection', {
+          fontFamily: 'georgia',
+          fontSizePt: 300,
+        })
+      ).status,
+    ).toBe(400);
 
     const saved = await api.put('/church/projection', {
       fontFamily: 'georgia',
@@ -72,30 +96,16 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
     });
 
     // "" y null borran el fondo por defecto (vuelve a negro); no tienen que repetir el resto.
-    const cleared = await api.put('/church/projection', { fontFamily: 'georgia', fontSizePt: 112, defaultBackgroundId: '' });
+    const cleared = await api.put('/church/projection', {
+      fontFamily: 'georgia',
+      fontSizePt: 112,
+      defaultBackgroundId: '',
+    });
     expect(cleared.body.data.projection.defaultBackgroundId).toBeNull();
 
-    expect((await api.get('/church')).body.data.projection.fontFamily).toBe('georgia');
-  });
-
-  it('un módulo apagado para todo Iris no se enciende desde la iglesia, pero su elección se guarda', async () => {
-    const api = authed(app, (await signUp(app)).accessToken);
-
-    const asked = await api.put('/church/modules', { bible: true, multimedia: true, timeControl: true });
-    expect(asked.body.data.modules.bible).toBe(false);
-
-    // Otro cliente guarda los módulos con la Biblia oculta (en false): no pisa la elección.
-    await api.put('/church/modules', { bible: false, multimedia: true, timeControl: true });
-
-    await prisma.systemFeature.update({ where: { key: 'bible' }, data: { enabled: true } });
-    try {
-      const church = await api.get('/church');
-      expect(church.body.data.modules.bible).toBe(true);
-      expect(church.body.data.availableModules.bible).toBe(true);
-    } finally {
-      await prisma.systemFeature.update({ where: { key: 'bible' }, data: { enabled: false } });
-    }
-    expect((await api.get('/church')).body.data.modules.bible).toBe(false);
+    expect((await api.get('/church')).body.data.projection.fontFamily).toBe(
+      'georgia',
+    );
   });
 
   it('personas: duplicado por nameKey, reuso tras borrar e idempotencia por id', async () => {
@@ -103,14 +113,19 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
 
     const first = await api.post('/people', { name: 'José Pérez' });
     expect(first.status).toBe(201);
-    expect(first.body.data).toMatchObject({ name: 'José Pérez', blockCount: 0 });
+    expect(first.body.data).toMatchObject({
+      name: 'José Pérez',
+      blockCount: 0,
+    });
 
     const duplicate = await api.post('/people', { name: ' jose  perez ' });
     expect(duplicate.status).toBe(409);
     expect(duplicate.body.code).toBe('PERSON_NAME_TAKEN');
 
     await api.delete(`/people/${first.body.data.id}`);
-    expect((await api.post('/people', { name: ' jose  perez ' })).status).toBe(201);
+    expect((await api.post('/people', { name: ' jose  perez ' })).status).toBe(
+      201,
+    );
 
     const id = randomUUID();
     expect((await api.post('/people', { id, name: 'Ana' })).status).toBe(201);
@@ -119,8 +134,12 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
     expect(retry.body.data.id).toBe(id);
 
     const foreign = authed(app, (await signUp(app)).accessToken);
-    expect((await foreign.post('/people', { id, name: 'Otra' })).body.code).toBe('ID_CONFLICT');
-    expect((await foreign.patch(`/people/${id}`, { name: 'X' })).status).toBe(404);
+    expect(
+      (await foreign.post('/people', { id, name: 'Otra' })).body.code,
+    ).toBe('ID_CONFLICT');
+    expect((await foreign.patch(`/people/${id}`, { name: 'X' })).status).toBe(
+      404,
+    );
   });
 
   it('tipos de servicio: bloques, reemplazo y responsable borrado', async () => {
@@ -156,10 +175,9 @@ describe('iglesia, personas y tipos de servicio (e2e)', () => {
       ],
     });
     expect(replaced.status).toBe(200);
-    expect(replaced.body.data.blocks.map((b: { id: string }) => b.id).slice(0, 2)).toEqual([
-      sermon.id,
-      welcome.id,
-    ]);
+    expect(
+      replaced.body.data.blocks.map((b: { id: string }) => b.id).slice(0, 2),
+    ).toEqual([sermon.id, welcome.id]);
     expect(replaced.body.data.schedule).toBeNull();
 
     expect(replaced.body.data.blocks[0]).not.toHaveProperty('defaultPersonId');

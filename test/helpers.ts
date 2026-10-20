@@ -114,13 +114,23 @@ export function authed(app: NestExpressApplication, token: string) {
   const server = app.getHttpServer();
   const bearer = `Bearer ${token}`;
   return {
-    get: (path: string) => request(server).get(`/api/v1${path}`).set('Authorization', bearer),
+    get: (path: string) =>
+      request(server).get(`/api/v1${path}`).set('Authorization', bearer),
     post: (path: string, body?: object) =>
-      request(server).post(`/api/v1${path}`).set('Authorization', bearer).send(body),
+      request(server)
+        .post(`/api/v1${path}`)
+        .set('Authorization', bearer)
+        .send(body),
     put: (path: string, body?: object) =>
-      request(server).put(`/api/v1${path}`).set('Authorization', bearer).send(body),
+      request(server)
+        .put(`/api/v1${path}`)
+        .set('Authorization', bearer)
+        .send(body),
     patch: (path: string, body?: object) =>
-      request(server).patch(`/api/v1${path}`).set('Authorization', bearer).send(body),
+      request(server)
+        .patch(`/api/v1${path}`)
+        .set('Authorization', bearer)
+        .send(body),
     delete: (path: string) =>
       request(server).delete(`/api/v1${path}`).set('Authorization', bearer),
   };
@@ -145,10 +155,15 @@ export async function isBibleImported(): Promise<boolean> {
   const { PrismaPg } = await import('@prisma/adapter-pg');
   const { PrismaClient } = await import('../src/generated/prisma/client.js');
   const prisma = new PrismaClient({
-    adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }, { schema: 'iris' }),
+    adapter: new PrismaPg(
+      { connectionString: process.env.DATABASE_URL! },
+      { schema: 'iris' },
+    ),
   });
   try {
-    return (await prisma.bibleTranslation.count({ where: { code: 'rvr1909' } })) > 0;
+    return (
+      (await prisma.bibleTranslation.count({ where: { code: 'rvr1909' } })) > 0
+    );
   } finally {
     await prisma.$disconnect();
   }

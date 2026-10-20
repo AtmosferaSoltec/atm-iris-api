@@ -36,7 +36,10 @@ export class PeopleService {
         const existing = await this.repository.findAnyById(input.id, tx);
         if (existing) {
           if (existing.churchId !== churchId) throw idConflict();
-          return { person: await this.withCount(churchId, existing), isNew: false };
+          return {
+            person: await this.withCount(churchId, existing),
+            isNew: false,
+          };
         }
       }
 
@@ -64,7 +67,12 @@ export class PeopleService {
         throw nameTaken();
       }
 
-      const row = await this.repository.rename(churchId, id, { name, nameKey: key }, tx);
+      const row = await this.repository.rename(
+        churchId,
+        id,
+        { name, nameKey: key },
+        tx,
+      );
       return this.withCount(churchId, row);
     });
   }

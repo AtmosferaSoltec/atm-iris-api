@@ -4,7 +4,11 @@ import { ChurchWriteLock } from '../../database/church-write-lock.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 
-export type StorageBreakdownBytes = { music: bigint; backgrounds: bigint; media: bigint };
+export type StorageBreakdownBytes = {
+  music: bigint;
+  backgrounds: bigint;
+  media: bigint;
+};
 
 @Injectable()
 export class ChurchRepository {
@@ -24,7 +28,11 @@ export class ChurchRepository {
       where: { churchId, deletedAt: null },
       _sum: { sizeBytes: true },
     });
-    const usage: StorageBreakdownBytes = { music: 0n, backgrounds: 0n, media: 0n };
+    const usage: StorageBreakdownBytes = {
+      music: 0n,
+      backgrounds: 0n,
+      media: 0n,
+    };
     for (const group of groups) {
       const bytes = group._sum.sizeBytes ?? 0n;
       if (group.kind === 'AUDIO') usage.music += bytes;

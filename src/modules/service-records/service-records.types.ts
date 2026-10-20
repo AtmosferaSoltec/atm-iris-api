@@ -1,5 +1,6 @@
 /** Contrato §14. */
-export type BlockStatusName = 'pending' | 'running' | 'completed' | 'skipped' | 'adjusted';
+export type BlockStatusName =
+  'pending' | 'running' | 'completed' | 'skipped' | 'adjusted';
 
 export type RecordStatusName = 'inProgress' | 'finished';
 
