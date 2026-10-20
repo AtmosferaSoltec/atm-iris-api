@@ -59,6 +59,14 @@ export const confirmUploadSchema = z.object({
   width: measure('El ancho debe ser un número positivo.'),
   height: measure('El alto debe ser un número positivo.'),
   isBackground: z.boolean('Indica si es fondo.').optional().default(false),
+  soundIcon: z
+    .string()
+    .trim()
+    .min(1)
+    .max(30, 'El icono tiene como máximo 30 caracteres.')
+    .nullable()
+    .optional()
+    .transform((value) => value || null),
 });
 
 /** En el PATCH, ausente (no tocar) no es lo mismo que `null` (borrar). */
@@ -100,6 +108,9 @@ export const listMediaSchema = createPaginationSchema().extend({
   search: z.string().trim().max(120).optional(),
   isBackground: z
     .stringbool({ error: 'isBackground debe ser true o false.' })
+    .optional(),
+  isSound: z
+    .stringbool({ error: 'isSound debe ser true o false.' })
     .optional(),
 });
 

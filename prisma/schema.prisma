@@ -402,6 +402,9 @@ model MediaAsset {
   height          Int?
   /// Solo imagenes: aparece en el selector de fondos de la consola.
   isBackground    Boolean   @default(false) @map("is_background")
+  /// Solo audios: es un efecto de sonido de la consola (aplausos, tambor...),
+  /// no la pista de una cancion. El valor es el nombre del icono que se eligio.
+  soundIcon       String?   @map("sound_icon") @db.VarChar(30)
   objectKey       String    @map("object_key") @db.VarChar(400)
   deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(3)
   /// Cuando la tarea horaria borro el archivo del almacenamiento (24 h despues

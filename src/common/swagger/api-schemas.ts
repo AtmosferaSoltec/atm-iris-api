@@ -153,6 +153,7 @@ const mediaAsset = object({
   width: nullable(int()),
   height: nullable(int()),
   isBackground: bool,
+  soundIcon: nullable(str()),
   createdAt: date,
   updatedAt: date,
 });

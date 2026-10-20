@@ -25,12 +25,15 @@ export type ConfirmedMedia = {
   width: number | null;
   height: number | null;
   isBackground: boolean;
+  soundIcon: string | null;
 };
 
 export type MediaFilters = {
   kinds?: MediaKind[];
   titleKey?: string;
   isBackground?: boolean;
+  /** `true`: solo los sonidos de la consola; `false`: los demas. */
+  isSound?: boolean;
 };
 
 @Injectable()
@@ -287,6 +290,9 @@ export class MediaRepository {
       ...(filters.kinds ? { kind: { in: filters.kinds } } : {}),
       ...(filters.isBackground !== undefined
         ? { isBackground: filters.isBackground }
+        : {}),
+      ...(filters.isSound !== undefined
+        ? { soundIcon: filters.isSound ? { not: null } : null }
         : {}),
       ...(filters.titleKey ? { titleKey: { contains: filters.titleKey } } : {}),
     };

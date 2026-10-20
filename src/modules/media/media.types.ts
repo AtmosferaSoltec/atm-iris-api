@@ -22,6 +22,8 @@ export type MediaAsset = {
   width: number | null;
   height: number | null;
   isBackground: boolean;
+  /** Solo audios: es un sonido de la consola con este icono; null si no. */
+  soundIcon: string | null;
   createdAt: string;
   updatedAt: string;
 };

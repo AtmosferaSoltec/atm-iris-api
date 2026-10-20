@@ -199,6 +199,7 @@ export class MediaService {
           width: hasSize ? input.width : null,
           height: hasSize ? input.height : null,
           isBackground: input.isBackground,
+          soundIcon: upload.kind === 'AUDIO' ? input.soundIcon : null,
         },
         tx,
       );
@@ -214,6 +215,7 @@ export class MediaService {
       kinds: query.kind?.map(toDbMediaKind),
       titleKey: query.search ? nameKey(query.search) : undefined,
       isBackground: query.isBackground,
+      isSound: query.isSound,
     };
     const [rows, total] = await Promise.all([
       this.repository.list(churchId, filters, pageWindow(query)),

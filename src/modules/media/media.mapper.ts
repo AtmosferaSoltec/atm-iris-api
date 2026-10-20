@@ -24,6 +24,7 @@ export function toMediaAsset(row: MediaAssetRow): MediaAsset {
     width: row.width,
     height: row.height,
     isBackground: row.isBackground,
+    soundIcon: row.soundIcon,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
