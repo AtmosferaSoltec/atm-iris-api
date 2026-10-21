@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Env } from '../../config/env.schema.js';
 import type { MailPort } from '../../integrations/mail/mail.port.js';
+import type { StoragePort } from '../../integrations/storage/storage.port.js';
 import type { AuthRepository, SessionWithAccount } from './auth.repository.js';
 import { AuthService } from './auth.service.js';
 import { RefreshTokenService } from './services/refresh-token.service.js';
@@ -87,6 +88,8 @@ function setup() {
     incrementResetAttempts: vi.fn(),
     markResetCodeUsed: vi.fn(),
     resetPassword: vi.fn(),
+    findUserById: vi.fn(),
+    deleteChurch: vi.fn().mockResolvedValue(undefined),
   };
   const tokens = {
     signAccessToken: vi
@@ -96,6 +99,10 @@ function setup() {
   const mail = { sendPasswordResetCode: vi.fn(), sendPasswordChanged: vi.fn() };
   const refreshTokens = new RefreshTokenService(config);
   const resetCodes = new ResetCodeService();
+  const storage = {
+    isConfigured: true,
+    deletePrefix: vi.fn().mockResolvedValue(0),
+  };
 
   const service = new AuthService(
     repository as unknown as AuthRepository,
@@ -104,9 +111,18 @@ function setup() {
     resetCodes,
     mail as unknown as MailPort,
     config,
+    storage as unknown as StoragePort,
   );
 
-  return { service, repository, tokens, mail, refreshTokens, resetCodes };
+  return {
+    service,
+    repository,
+    tokens,
+    mail,
+    refreshTokens,
+    resetCodes,
+    storage,
+  };
 }
 
 describe('AuthService', () => {
@@ -170,6 +186,60 @@ describe('AuthService', () => {
         sessionId: 'session-1',
         generation: 0,
       });
+    });
+  });
+
+  describe('deleteAccount', () => {
+    const user = {
+      userId: 'user-1',
+      churchId: 'church-1',
+      sessionId: 'session-1',
+    };
+
+    it('no borra nada si la contrasena no es la de la cuenta', async () => {
+      ctx.repository.findUserById.mockResolvedValue({
+        id: 'user-1',
+        passwordHash: await hash('la-buena'),
+      });
+
+      await expect(
+        ctx.service.deleteAccount(user, { password: 'la-mala' }),
+      ).rejects.toMatchObject({
+        response: { code: 'INVALID_CURRENT_PASSWORD' },
+      });
+      expect(ctx.storage.deletePrefix).not.toHaveBeenCalled();
+      expect(ctx.repository.deleteChurch).not.toHaveBeenCalled();
+    });
+
+    it('borra los archivos de la iglesia y luego la iglesia', async () => {
+      ctx.repository.findUserById.mockResolvedValue({
+        id: 'user-1',
+        passwordHash: await hash('la-buena'),
+      });
+
+      await ctx.service.deleteAccount(user, { password: 'la-buena' });
+
+      expect(ctx.storage.deletePrefix).toHaveBeenCalledWith(
+        'churches/church-1/',
+      );
+      expect(ctx.repository.deleteChurch).toHaveBeenCalledWith('church-1');
+      const filesFirst = ctx.storage.deletePrefix.mock.invocationCallOrder[0]!;
+      const churchAfter =
+        ctx.repository.deleteChurch.mock.invocationCallOrder[0]!;
+      expect(filesFirst).toBeLessThan(churchAfter);
+    });
+
+    it('si los archivos fallan, la cuenta queda para reintentar', async () => {
+      ctx.repository.findUserById.mockResolvedValue({
+        id: 'user-1',
+        passwordHash: await hash('la-buena'),
+      });
+      ctx.storage.deletePrefix.mockRejectedValueOnce(new Error('bucket caido'));
+
+      await expect(
+        ctx.service.deleteAccount(user, { password: 'la-buena' }),
+      ).rejects.toThrow('bucket caido');
+      expect(ctx.repository.deleteChurch).not.toHaveBeenCalled();
     });
   });
 

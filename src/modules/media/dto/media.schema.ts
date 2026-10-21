@@ -109,9 +109,7 @@ export const listMediaSchema = createPaginationSchema().extend({
   isBackground: z
     .stringbool({ error: 'isBackground debe ser true o false.' })
     .optional(),
-  isSound: z
-    .stringbool({ error: 'isSound debe ser true o false.' })
-    .optional(),
+  isSound: z.stringbool({ error: 'isSound debe ser true o false.' }).optional(),
 });
 
 export type CreateUploadInput = z.infer<typeof createUploadSchema>;

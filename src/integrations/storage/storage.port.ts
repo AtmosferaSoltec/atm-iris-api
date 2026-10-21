@@ -30,6 +30,9 @@ export abstract class StoragePort {
   /** Borra el objeto. No falla si ya no existe. */
   abstract deleteObject(key: string): Promise<void>;
 
+  /** Borra todos los objetos cuya clave empieza con `prefix`. Devuelve cuantos borro. */
+  abstract deletePrefix(prefix: string): Promise<number>;
+
   /** Para `/health`: lanza si el bucket no responde. */
   abstract ping(): Promise<void>;
 }

@@ -34,8 +34,10 @@ import type {
 } from './auth.types.js';
 import {
   changePasswordSchema,
+  deleteAccountSchema,
   updateProfileSchema,
   type ChangePasswordInput,
+  type DeleteAccountInput,
   type UpdateProfileInput,
   forgotPasswordSchema,
   refreshSchema,
@@ -157,6 +159,20 @@ export class AuthController {
     @Body(new ZodValidationPipe(changePasswordSchema)) dto: ChangePasswordInput,
   ): Promise<void> {
     return this.auth.changePassword(user, dto);
+  }
+
+  @Post('delete-account')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Borrar la cuenta y todos los datos de la iglesia (base y almacenamiento). Irreversible.',
+  })
+  deleteAccount(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(deleteAccountSchema)) dto: DeleteAccountInput,
+  ): Promise<void> {
+    return this.auth.deleteAccount(user, dto);
   }
 
   @Get('sessions')

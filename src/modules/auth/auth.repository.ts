@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
+import { withChurchLock } from '../../database/church-write-lock.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import type {
   ClientPlatform,
@@ -82,6 +83,17 @@ export class AuthRepository {
 
   findUserById(id: string) {
     return this.prisma.user.findUnique({ where: { id } });
+  }
+
+  /**
+   * Borra la iglesia y, con ella en cascada, su cuenta, sesiones, contenido,
+   * subidas y televisores. Va con el candado de la iglesia para no competir con
+   * una escritura en curso.
+   */
+  deleteChurch(churchId: string): Promise<void> {
+    return withChurchLock(this.prisma, churchId, async (tx) => {
+      await tx.church.delete({ where: { id: churchId } });
+    });
   }
 
   /* --------------------------------------------------------------- Sesiones */

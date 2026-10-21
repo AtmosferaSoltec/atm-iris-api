@@ -27,6 +27,10 @@ export class UnconfiguredStorageService extends StoragePort {
     return Promise.reject(unavailable());
   }
 
+  deletePrefix(): Promise<number> {
+    return Promise.reject(unavailable());
+  }
+
   ping(): Promise<void> {
     return Promise.reject(unavailable());
   }

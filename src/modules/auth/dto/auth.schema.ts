@@ -95,6 +95,15 @@ export const changePasswordSchema = z
 export type ClientInput = z.infer<typeof clientSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+/** Borrar la cuenta pide la contraseña: quien tenga solo la sesión no basta. */
+export const deleteAccountSchema = z.object({
+  password: z
+    .string('Ingresa tu contraseña.')
+    .min(1, 'Ingresa tu contraseña.')
+    .max(128),
+});
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;

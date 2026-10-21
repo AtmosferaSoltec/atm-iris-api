@@ -12,6 +12,7 @@ import { hash, verify } from '@node-rs/argon2';
 import { API_ERROR_CODES } from '../../common/constants/error-codes.js';
 import type { Env } from '../../config/env.schema.js';
 import { MailPort } from '../../integrations/mail/mail.port.js';
+import { StoragePort } from '../../integrations/storage/storage.port.js';
 import {
   REFRESH_REUSE_GRACE_SECONDS,
   RESET_CODE_TTL_MINUTES,
@@ -30,6 +31,7 @@ import type {
 import type {
   ChangePasswordInput,
   ClientInput,
+  DeleteAccountInput,
   ResetPasswordInput,
   SignInInput,
   SignUpInput,
@@ -52,6 +54,7 @@ export class AuthService {
     private readonly resetCodes: ResetCodeService,
     private readonly mail: MailPort,
     private readonly config: ConfigService<Env, true>,
+    private readonly storage: StoragePort,
   ) {}
 
   /* ---------------------------------------------------------- Cuenta y login */
@@ -200,6 +203,45 @@ export class AuthService {
     );
 
     await this.notifyPasswordChanged(account);
+  }
+
+  /**
+   * Borra la cuenta y todo lo de su iglesia: la base (en cascada) y los archivos
+   * del almacenamiento. Los archivos van primero: si fallan, la cuenta sigue
+   * ahí y se puede reintentar; si se borrara la base antes, esos archivos
+   * quedarían sin forma de encontrarlos.
+   */
+  async deleteAccount(
+    user: AuthenticatedUser,
+    input: DeleteAccountInput,
+  ): Promise<void> {
+    const account = await this.repository.findUserById(user.userId);
+    if (!account) throw this.invalidRefreshToken();
+
+    if (!(await this.verifyPassword(input.password, account.passwordHash))) {
+      throw new BadRequestException({
+        code: API_ERROR_CODES.INVALID_CURRENT_PASSWORD,
+        message: 'La contraseña no es correcta.',
+        errors: { password: 'La contraseña no es correcta.' },
+      });
+    }
+
+    await this.deleteFiles(user.churchId);
+    await this.repository.deleteChurch(user.churchId);
+    // Una subida firmada antes de borrar puede llegar al bucket despues de la
+    // primera pasada. Su fila ya no existe, asi que solo esta segunda la
+    // alcanza. Si falla, la cuenta ya se fue: queda constancia en el log.
+    await this.deleteFiles(user.churchId).catch((error: unknown) =>
+      this.logger.error(
+        `Quedaron archivos de la iglesia ${user.churchId} tras borrar la cuenta`,
+        error instanceof Error ? error.stack : String(error),
+      ),
+    );
+  }
+
+  private async deleteFiles(churchId: string): Promise<void> {
+    if (!this.storage.isConfigured) return;
+    await this.storage.deletePrefix(`churches/${churchId}/`);
   }
 
   async listSessions(user: AuthenticatedUser): Promise<DeviceSession[]> {
